@@ -14,6 +14,7 @@ export default function App() {
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
+  const [progress, setProgress] = useState(0);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('geminiApiKey');
@@ -68,6 +69,7 @@ export default function App() {
     setLoading(true);
     setError('');
     setOutput('');
+    setProgress(0);
 
     try {
       const ai = new GoogleGenAI({ apiKey: keyToUse });
@@ -75,15 +77,32 @@ export default function App() {
       
       const prompt = `사용자 목표: ${inputText}\n\n참고 문서 내용:\n${parsedFilesText}\n\n위 내용을 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해주세요.`;
 
-      const response = await ai.models.generateContent({
+      const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3.1-pro-preview',
         contents: prompt,
         config: {
-          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요.\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 강조해야 할 핵심 키워드, 중요한 일정, 주의사항 등에는 반드시 HTML 태그를 사용하여 파란색 글씨(<span style=\"color: #2563eb; font-weight: bold;\">...</span>), 빨간색 글씨(<span style=\"color: #dc2626; font-weight: bold;\">...</span>), 노란색 배경(<span style=\"background-color: #fef08a; padding: 0 4px; border-radius: 4px;\">...</span>)을 입혀서 시각적으로 돋보이게 작성하세요.\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
+          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요. (예: '1일차:', '2일차:' 형식 사용)\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 강조해야 할 핵심 키워드, 중요한 일정, 주의사항 등에는 반드시 HTML 태그를 사용하여 파란색 글씨(<span style=\"color: #2563eb; font-weight: bold;\">...</span>), 빨간색 글씨(<span style=\"color: #dc2626; font-weight: bold;\">...</span>), 노란색 배경(<span style=\"background-color: #fef08a; padding: 0 4px; border-radius: 4px;\">...</span>)을 입혀서 시각적으로 돋보이게 작성하세요.\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
         }
       });
 
-      setOutput(response.text || '');
+      let currentText = '';
+      for await (const chunk of responseStream) {
+        currentText += chunk.text;
+        setOutput(currentText);
+        
+        // 텍스트에서 'X일차' 또는 'X일 차'를 찾아 진행률 계산 (90일 기준)
+        const matches = [...currentText.matchAll(/(\d+)\s*일\s*차?/g)];
+        if (matches.length > 0) {
+          const lastMatch = matches[matches.length - 1];
+          const day = parseInt(lastMatch[1], 10);
+          if (day > 0 && day <= 90) {
+            setProgress(Math.round((day / 90) * 100));
+          }
+        } else if (currentText.length > 50 && progress === 0) {
+          setProgress(2); // 초기 진행률 표시
+        }
+      }
+      setProgress(100);
     } catch (err: any) {
       console.error(err);
       setError(err.message || '계획 생성 중 오류가 발생했습니다.');
@@ -225,20 +244,31 @@ export default function App() {
               </div>
             )}
 
-            <button
-              onClick={generatePlan}
-              disabled={loading}
-              className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
-            >
-              {loading ? (
-                <>
-                  <Loader2 className="w-5 h-5 animate-spin" />
-                  <span>90일 로드맵 생성 중...</span>
-                </>
-              ) : (
-                <span>캘린더 생성하기</span>
+            <div className="space-y-3">
+              <button
+                onClick={generatePlan}
+                disabled={loading}
+                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
+              >
+                {loading ? (
+                  <>
+                    <Loader2 className="w-5 h-5 animate-spin" />
+                    <span>90일 로드맵 생성 중... {progress > 0 ? `(${progress}%)` : ''}</span>
+                  </>
+                ) : (
+                  <span>캘린더 생성하기</span>
+                )}
+              </button>
+
+              {loading && (
+                <div className="w-full bg-neutral-100 rounded-full h-2.5 overflow-hidden border border-neutral-200">
+                  <div 
+                    className="bg-indigo-600 h-full rounded-full transition-all duration-300 ease-out" 
+                    style={{ width: `${Math.max(progress, 2)}%` }}
+                  />
+                </div>
               )}
-            </button>
+            </div>
           </div>
         </div>
 
