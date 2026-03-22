@@ -3,13 +3,17 @@ import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun } from 'docx';
 import { saveAs } from 'file-saver';
-import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2 } from 'lucide-react';
+import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle } from 'lucide-react';
 
 export default function App() {
   const [apiKey, setApiKey] = useState('');
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
   const [inputText, setInputText] = useState('');
+  const [targetAudience, setTargetAudience] = useState('');
+  const [productService, setProductService] = useState('');
+  const [revenueGoal, setRevenueGoal] = useState('');
+  const [currentStatus, setCurrentStatus] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
@@ -61,8 +65,9 @@ export default function App() {
       return;
     }
 
-    if (!inputText.trim() && files.length === 0) {
-      setError('목표를 입력하거나 참고 문서를 첨부해주세요.');
+    const hasAnyInput = inputText.trim() || targetAudience.trim() || productService.trim() || revenueGoal.trim() || currentStatus.trim();
+    if (!hasAnyInput && files.length === 0) {
+      setError('상세 정보를 하나 이상 입력하거나 참고 문서를 첨부해주세요.');
       return;
     }
 
@@ -75,7 +80,19 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey: keyToUse });
       const parsedFilesText = await parseFiles(files);
       
-      const prompt = `사용자 목표: ${inputText}\n\n참고 문서 내용:\n${parsedFilesText}\n\n위 내용을 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해주세요.`;
+      const prompt = `다음 정보를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해주세요.
+
+[입력된 상세 정보]
+- 타겟 고객: ${targetAudience || '미입력'}
+- 주요 상품/서비스: ${productService || '미입력'}
+- 수익 목표: ${revenueGoal || '미입력'}
+- 현재 상황 및 자원: ${currentStatus || '미입력'}
+- 추가 목표/요청사항: ${inputText || '미입력'}
+
+[참고 문서 내용]
+${parsedFilesText || '(첨부된 문서 없음)'}
+
+위의 정보들을 종합하여 가장 효과적이고 혁신적인 90일 수익화 캘린더를 제안해주세요.`;
 
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3.1-pro-preview',
@@ -178,97 +195,136 @@ export default function App() {
 
       {/* Main Content */}
       <main className="max-w-4xl mx-auto px-4 py-12">
-        <div className="bg-white rounded-2xl shadow-sm border border-neutral-200 p-6 md:p-8 mb-8">
-          <h3 className="text-lg font-semibold mb-4">수익화 목표 및 참고 자료 입력</h3>
-          
-          <div className="space-y-6">
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-2">
-                2026년 수익화 목표 (선택사항)
+        <div className="space-y-6 mb-8">
+          {/* 1. File Upload Section */}
+          <div className="bg-white rounded-2xl shadow-sm border border-indigo-100 p-6 md:p-8 relative overflow-hidden">
+            <div className="absolute top-0 left-0 w-1.5 h-full bg-indigo-500"></div>
+            <h3 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
+              <Upload className="w-5 h-5 text-indigo-600" />
+              1. 참고 문서 첨부 (권장)
+            </h3>
+            <p className="text-sm text-neutral-600 mb-5 leading-relaxed">
+              <span className="font-semibold text-indigo-600">첨부 권장 파일:</span> 혁신 수익화 발굴 MD파일, 혁신 트렌드 AI MD 파일 첨부 권장<br/>
+              문서를 첨부하시면 아래의 상세 정보를 일일이 입력하지 않으셔도 AI가 문서를 분석하여 로드맵을 생성합니다.
+            </p>
+            
+            <div className="flex items-center gap-4">
+              <label className="flex items-center justify-center px-4 py-2 border border-neutral-300 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
+                <Upload className="w-4 h-4 mr-2 text-neutral-500" />
+                <span className="text-sm font-medium">파일 선택</span>
+                <input
+                  type="file"
+                  multiple
+                  accept=".md,.docx,.txt"
+                  onChange={handleFileChange}
+                  className="hidden"
+                />
               </label>
-              <textarea
-                value={inputText}
-                onChange={(e) => setInputText(e.target.value)}
-                placeholder="예: AI 기반 SaaS 서비스를 런칭하여 월 수익 1000만원 달성하기..."
-                className="w-full h-32 px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none"
-              />
+              <span className="text-sm text-neutral-500">
+                {files.length > 0 ? `${files.length}개의 파일 선택됨` : '선택된 파일 없음'}
+              </span>
             </div>
+            
+            {files.length > 0 && (
+              <ul className="mt-4 space-y-2">
+                {files.map((file, index) => (
+                  <li key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
+                    <div className="flex items-center gap-3 overflow-hidden">
+                      <FileText className="w-5 h-5 text-indigo-500 flex-shrink-0" />
+                      <span className="text-sm truncate">{file.name}</span>
+                    </div>
+                    <button 
+                      onClick={() => removeFile(index)}
+                      className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
+                    >
+                      <Trash2 className="w-4 h-4" />
+                    </button>
+                  </li>
+                ))}
+              </ul>
+            )}
+          </div>
 
-            <div>
-              <label className="block text-sm font-medium text-neutral-700 mb-1">
-                참고 문서 첨부 (MD, DOCX)
-              </label>
-              <p className="text-xs text-indigo-600 mb-3 font-medium">
-                첨부 권장 파일 : 혁신 수익화 발굴 MD파일, 혁신 트렌드 AI MD 파일 첨부 권장
-              </p>
-              <div className="flex items-center gap-4">
-                <label className="flex items-center justify-center px-4 py-2 border border-neutral-300 rounded-lg cursor-pointer hover:bg-neutral-50 transition-colors">
-                  <Upload className="w-4 h-4 mr-2 text-neutral-500" />
-                  <span className="text-sm font-medium">파일 선택</span>
-                  <input
-                    type="file"
-                    multiple
-                    accept=".md,.docx,.txt"
-                    onChange={handleFileChange}
-                    className="hidden"
-                  />
-                </label>
-                <span className="text-sm text-neutral-500">
-                  {files.length > 0 ? `${files.length}개의 파일 선택됨` : '선택된 파일 없음'}
-                </span>
-              </div>
-              
-              {files.length > 0 && (
-                <ul className="mt-4 space-y-2">
-                  {files.map((file, index) => (
-                    <li key={index} className="flex items-center justify-between p-3 bg-neutral-50 rounded-lg border border-neutral-200">
-                      <div className="flex items-center gap-3 overflow-hidden">
-                        <FileText className="w-5 h-5 text-indigo-500 flex-shrink-0" />
-                        <span className="text-sm truncate">{file.name}</span>
-                      </div>
-                      <button 
-                        onClick={() => removeFile(index)}
-                        className="p-1 text-neutral-400 hover:text-red-500 transition-colors"
-                      >
-                        <Trash2 className="w-4 h-4" />
-                      </button>
-                    </li>
-                  ))}
-                </ul>
-              )}
-            </div>
-
-            {error && (
-              <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">
-                {error}
+          {/* 2. Manual Input Section */}
+          <div className={`bg-white rounded-2xl shadow-sm border transition-all duration-300 p-6 md:p-8 relative overflow-hidden ${files.length > 0 ? 'border-emerald-200 bg-emerald-50/30' : 'border-neutral-200'}`}>
+            {files.length > 0 && (
+              <div className="absolute top-6 right-6 bg-emerald-100 text-emerald-800 text-xs font-bold px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-sm">
+                <CheckCircle className="w-4 h-4" />
+                문서 첨부 완료 (아래 항목은 생략 가능합니다)
               </div>
             )}
+            
+            <h3 className="text-lg font-bold text-neutral-900 mb-2 flex items-center gap-2">
+              <FileText className="w-5 h-5 text-neutral-600" />
+              2. 상세 정보 입력 {files.length > 0 && <span className="text-emerald-600 text-sm font-medium">(선택사항)</span>}
+            </h3>
+            <p className="text-sm text-neutral-500 mb-6">
+              문서가 없거나 추가로 강조하고 싶은 내용이 있다면 아래 항목을 작성해주세요.
+            </p>
 
-            <div className="space-y-3">
-              <button
-                onClick={generatePlan}
-                disabled={loading}
-                className="w-full py-3 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-medium rounded-xl transition-colors disabled:opacity-70 flex items-center justify-center gap-2"
-              >
-                {loading ? (
-                  <>
-                    <Loader2 className="w-5 h-5 animate-spin" />
-                    <span>90일 로드맵 생성 중... {progress > 0 ? `(${progress}%)` : ''}</span>
-                  </>
-                ) : (
-                  <span>캘린더 생성하기</span>
-                )}
-              </button>
+            <div className={`grid grid-cols-1 md:grid-cols-2 gap-5 ${files.length > 0 ? 'opacity-70 hover:opacity-100 transition-opacity' : ''}`}>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">타겟 고객</label>
+                <input type="text" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} placeholder="예: 2030 직장인, 1인 기업가..." className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">주요 상품/서비스</label>
+                <input type="text" value={productService} onChange={e => setProductService(e.target.value)} placeholder="예: AI 기반 SaaS, 온라인 강의..." className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">수익 목표</label>
+                <input type="text" value={revenueGoal} onChange={e => setRevenueGoal(e.target.value)} placeholder="예: 월 1000만원, 연 매출 1억..." className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+              <div>
+                <label className="block text-sm font-medium text-neutral-700 mb-1">현재 상황 및 가용 자원</label>
+                <input type="text" value={currentStatus} onChange={e => setCurrentStatus(e.target.value)} placeholder="예: 초기 자본 500만원, 개발자 1명..." className="w-full px-4 py-2.5 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500" />
+              </div>
+              <div className="md:col-span-2">
+                <label className="block text-sm font-medium text-neutral-700 mb-1">추가 목표 및 요청사항</label>
+                <textarea value={inputText} onChange={e => setInputText(e.target.value)} placeholder="그 외 AI에게 특별히 요청하고 싶은 로드맵의 방향성이나 목표를 자유롭게 적어주세요." className="w-full h-24 px-4 py-3 rounded-xl border border-neutral-300 focus:ring-2 focus:ring-indigo-500 focus:border-indigo-500 resize-none" />
+              </div>
+            </div>
+          </div>
 
-              {loading && (
-                <div className="w-full bg-neutral-100 rounded-full h-2.5 overflow-hidden border border-neutral-200">
+          {error && (
+            <div className="p-4 bg-red-50 text-red-700 rounded-lg text-sm">
+              {error}
+            </div>
+          )}
+
+          <div className="space-y-3">
+            <button
+              onClick={generatePlan}
+              disabled={loading}
+              className="w-full py-4 px-4 bg-indigo-600 hover:bg-indigo-700 text-white font-bold text-lg rounded-xl transition-colors disabled:opacity-70 flex items-center justify-center gap-2 shadow-md"
+            >
+              {loading ? (
+                <>
+                  <Loader2 className="w-6 h-6 animate-spin" />
+                  <span>90일 로드맵 생성 중...</span>
+                </>
+              ) : (
+                <span>캘린더 생성하기</span>
+              )}
+            </button>
+
+            {loading && (
+              <div className="mt-4 p-5 bg-indigo-50 rounded-xl border border-indigo-100 animate-in fade-in duration-300">
+                <div className="flex justify-between items-center mb-3">
+                  <span className="text-sm font-semibold text-indigo-800">로드맵 생성 진행률</span>
+                  <span className="text-lg font-bold text-indigo-600">{progress}%</span>
+                </div>
+                <div className="w-full bg-indigo-200/50 rounded-full h-3 overflow-hidden">
                   <div 
                     className="bg-indigo-600 h-full rounded-full transition-all duration-300 ease-out" 
                     style={{ width: `${Math.max(progress, 2)}%` }}
                   />
                 </div>
-              )}
-            </div>
+                <p className="text-xs text-indigo-600/80 mt-3 text-center font-medium animate-pulse">
+                  AI가 90일치 수익화 일정을 꼼꼼하게 작성하고 있습니다...
+                </p>
+              </div>
+            )}
           </div>
         </div>
 
