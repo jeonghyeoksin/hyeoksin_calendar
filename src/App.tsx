@@ -10,6 +10,7 @@ export default function App() {
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
+  const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
   const [inputText, setInputText] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
@@ -196,6 +197,27 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
+            <div className="hidden lg:flex flex-col items-end px-4 border-r border-zinc-800 mr-2">
+              <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Est. API Cost</span>
+              <div className="flex items-center gap-1.5">
+                <span className="text-amber-400 font-bold text-sm">₩140 ~ ₩450</span>
+                <div className="group relative">
+                  <Info className="w-3.5 h-3.5 text-zinc-600 cursor-help hover:text-zinc-400" />
+                  <div className="absolute top-full right-0 mt-2 w-48 p-2 bg-zinc-800 border border-zinc-700 rounded-lg text-[10px] text-zinc-400 hidden group-hover:block z-50 shadow-2xl">
+                    결과물 길이에 따라 비용 편차가 발생할 수 있습니다 (평균 250원)
+                  </div>
+                </div>
+              </div>
+            </div>
+
+            <button
+              onClick={() => setIsPatchNotesOpen(true)}
+              className="flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 transition-all text-sm font-bold bg-zinc-900/50"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">패치노트</span>
+            </button>
+
             <button
               onClick={() => setIsHowToUseOpen(true)}
               className="hidden md:flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 transition-all text-sm font-bold"
@@ -510,6 +532,107 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 className="w-full py-3 text-zinc-500 hover:text-white transition-colors text-xs font-black tracking-widest"
               >
                 DISMISS
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
+
+      {/* Patch Notes Modal */}
+      {isPatchNotesOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className="bg-zinc-900 rounded-[2.5rem] p-8 md:p-12 w-full max-w-2xl shadow-2xl border border-zinc-800 relative my-8">
+            <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
+            
+            <div className="flex justify-between items-center mb-8">
+              <div className="flex items-center gap-3">
+                <div className="bg-amber-400 p-2 rounded-xl">
+                  <FileText className="w-6 h-6 text-black" />
+                </div>
+                <h3 className="text-3xl font-black text-white italic tracking-tighter">PATCH NOTES</h3>
+              </div>
+              <button onClick={() => setIsPatchNotesOpen(false)} className="bg-zinc-800 p-2 rounded-full text-zinc-400 hover:text-white transition-colors">
+                <X className="w-6 h-6" />
+              </button>
+            </div>
+
+            <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
+              <div className="border-l-2 border-amber-400 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-amber-400 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-3 mb-2">
+                    <span className="text-xs font-black bg-amber-400 text-black px-2 py-0.5 rounded">NEW</span>
+                    <span className="text-amber-400 font-bold">v1.6.0</span>
+                    <span className="text-zinc-500 text-xs font-medium">2026.04.19</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">시스템 고도화 및 패치노트 도입</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>실시간 업데이트 확인을 위한 패치노트 시스템 도입</li>
+                    <li>예상 API 운영 비용 안내 (KRW 표시)</li>
+                    <li>기능별 비용 가이드 및 편차 안내 팝업 추가</li>
+                 </ul>
+              </div>
+
+              <div className="border-l-2 border-zinc-800 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-2 mb-2">
+                    <span className="text-zinc-500 font-bold">v1.5.0</span>
+                    <span className="text-zinc-600 text-xs font-medium">2026.04.19</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">지원 채널 통합</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>혁신 AI 공식 웹사이트(hyeoksinai.com) 바로가기 추가</li>
+                    <li>오류 및 유지보수 이메일(info@nextin.ai.kr) 원클릭 지원창 추가</li>
+                 </ul>
+              </div>
+
+              <div className="border-l-2 border-zinc-800 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-2 mb-2">
+                    <span className="text-zinc-500 font-bold">v1.4.0</span>
+                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">디자인 엔진 및 DOCX 모듈 강화</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>블랙/골드/레드 프리미엄 테마 적용</li>
+                    <li>사용방법(How-to) 가이드 시스템 도입</li>
+                    <li>DOCX 다운로드 시 강조 색상 매핑 동기화</li>
+                    <li>첨부 파일명 기반 동적 파일명 생성 기능</li>
+                 </ul>
+              </div>
+
+              <div className="border-l-2 border-zinc-800 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-2 mb-2">
+                    <span className="text-zinc-500 font-bold">v1.3.0</span>
+                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">진행 과정 시각화</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>90일 로드맵 생성률 % 트래킹 바 도입</li>
+                    <li>공유 시 메타데이터(혁신 수익화 캘린더 AI) 최적화</li>
+                 </ul>
+              </div>
+
+              <div className="border-l-2 border-zinc-800 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-2 mb-2">
+                    <span className="text-zinc-500 font-bold">v1.0.0</span>
+                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">최초 릴리즈</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>Gemini AI 기반 90일 수익화 로드맵 엔진 개발</li>
+                    <li>문서 분석 기술(Mammoth) 통합</li>
+                 </ul>
+              </div>
+            </div>
+
+            <div className="mt-10 pt-8 border-t border-zinc-800">
+               <button 
+                onClick={() => setIsPatchNotesOpen(false)}
+                className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl border border-zinc-700 transition-all"
+              >
+                CLOSE
               </button>
             </div>
           </div>
