@@ -11,6 +11,7 @@ export default function App() {
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
+  const [isApiCostModalOpen, setIsApiCostModalOpen] = useState(false);
   const [tempApiKey, setTempApiKey] = useState('');
   const [inputText, setInputText] = useState('');
   const [targetAudience, setTargetAudience] = useState('');
@@ -197,18 +198,13 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
           </div>
           
           <div className="flex items-center gap-2 md:gap-4">
-            <div className="hidden lg:flex flex-col items-end px-4 border-r border-zinc-800 mr-2">
-              <span className="text-[10px] text-zinc-500 font-black uppercase tracking-widest">Est. API Cost</span>
-              <div className="flex items-center gap-1.5">
-                <span className="text-amber-400 font-bold text-sm">₩140 ~ ₩450</span>
-                <div className="group relative">
-                  <Info className="w-3.5 h-3.5 text-zinc-600 cursor-help hover:text-zinc-400" />
-                  <div className="absolute top-full right-0 mt-2 w-48 p-2 bg-zinc-800 border border-zinc-700 rounded-lg text-[10px] text-zinc-400 hidden group-hover:block z-50 shadow-2xl">
-                    결과물 길이에 따라 비용 편차가 발생할 수 있습니다 (평균 250원)
-                  </div>
-                </div>
-              </div>
-            </div>
+            <button
+              onClick={() => setIsApiCostModalOpen(true)}
+              className="hidden lg:flex items-center gap-2 px-4 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 transition-all text-sm font-bold bg-zinc-900/50"
+            >
+              <Info className="w-4 h-4 text-amber-400" />
+              <span>API 비용</span>
+            </button>
 
             <button
               onClick={() => setIsPatchNotesOpen(true)}
@@ -534,6 +530,47 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 DISMISS
               </button>
             </div>
+          </div>
+        </div>
+      )}
+
+      {/* API Cost Modal */}
+      {isApiCostModalOpen && (
+        <div className="fixed inset-0 bg-black/80 backdrop-blur-md flex items-center justify-center z-[100] p-4">
+          <div className="bg-zinc-900 rounded-[2.5rem] p-8 md:p-12 w-full max-w-md shadow-2xl border border-zinc-800 relative overflow-hidden text-center">
+            <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
+            <div className="bg-amber-400 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-400/20">
+              <Info className="w-8 h-8 text-black" />
+            </div>
+            <h3 className="text-2xl font-black text-white italic mb-4">ESTIMATED API COST</h3>
+            
+            <div className="bg-zinc-950 p-6 rounded-3xl border border-zinc-800 mb-6">
+              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Price Range (KRW)</p>
+              <p className="text-3xl font-black text-amber-400">₩140 ~ ₩450</p>
+              <p className="text-zinc-600 text-[10px] font-bold mt-2 uppercase tracking-wide">Average: ₩250 per generation</p>
+            </div>
+
+            <div className="space-y-4 text-left bg-zinc-800/30 p-6 rounded-2xl border border-zinc-800 mb-8">
+              <div className="flex gap-3">
+                <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                <p className="text-zinc-400 text-xs leading-relaxed">
+                  결과물(텍스트 길이)에 따라 비용 편차가 발생할 수 있음을 알려드립니다.
+                </p>
+              </div>
+              <div className="flex gap-3">
+                <div className="w-1.5 h-1.5 bg-amber-400 rounded-full mt-1.5 flex-shrink-0"></div>
+                <p className="text-zinc-400 text-xs leading-relaxed">
+                  Gemini API의 실시간 토큰 사용량에 기반하여 자동 계산된 수치입니다.
+                </p>
+              </div>
+            </div>
+
+            <button 
+              onClick={() => setIsApiCostModalOpen(false)}
+              className="w-full py-4 bg-zinc-800 hover:bg-zinc-700 text-white font-black rounded-2xl border border-zinc-700 transition-all flex items-center justify-center gap-2"
+            >
+              확인 (닫기)
+            </button>
           </div>
         </div>
       )}
