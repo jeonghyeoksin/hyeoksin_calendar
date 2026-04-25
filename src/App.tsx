@@ -87,8 +87,9 @@ export default function App() {
     const rawKey = apiKey || process.env.GEMINI_API_KEY;
     const keyToUse = rawKey?.trim().replace(/[^\x00-\x7F]/g, "");
     
-    if (!keyToUse) {
-      setError('API Key가 필요합니다. 우측 상단에서 설정해주세요.');
+    if (!keyToUse || keyToUse === 'undefined' || keyToUse === 'YOUR_API_KEY') {
+      setError('API Key가 필요합니다. 우측 상단 "API 설정"에서 키를 입력하거나, 프로젝트 설정의 환경 변수(GEMINI_API_KEY)를 확인해주세요.');
+      setLoading(false);
       return;
     }
 
@@ -117,7 +118,7 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
 위의 정보들을 종합하여 가장 효과적이고 혁신적인 90일 수익화 캘린더를 제안해주세요.`;
 
       const responseStream = await ai.models.generateContentStream({
-        model: 'gemini-3.1-pro-preview',
+        model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
           systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요. (예: '1일차:', '2일차:' 형식 사용)\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 핵심 키워드나 강조 사항에는 반드시 HTML 태그를 사용하여 다음 3가지 스타일을 입히세요:\n- 진한 파란색: <span style=\"color: #1d4ed8; font-weight: bold;\">텍스트</span>\n- 중요 빨간색: <span style=\"color: #dc2626; font-weight: bold;\">텍스트</span>\n- 꼭 참조해야 할 사항(노란 배경): <span style=\"background-color: #fef08a; padding: 0 4px; border-radius: 4px;\">텍스트</span>\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
