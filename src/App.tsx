@@ -12,12 +12,11 @@ export default function App() {
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const [isApiCostModalOpen, setIsApiCostModalOpen] = useState(false);
+  const [isAuthenticated, setIsAuthenticated] = useState(false);
+  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [authCode, setAuthCode] = useState('');
   const [tempApiKey, setTempApiKey] = useState('');
   const [inputText, setInputText] = useState('');
-  const [targetAudience, setTargetAudience] = useState('');
-  const [productService, setProductService] = useState('');
-  const [revenueGoal, setRevenueGoal] = useState('');
-  const [currentStatus, setCurrentStatus] = useState('');
   const [files, setFiles] = useState<File[]>([]);
   const [loading, setLoading] = useState(false);
   const [output, setOutput] = useState('');
@@ -29,12 +28,27 @@ export default function App() {
     if (storedKey) {
       setApiKey(storedKey);
     }
+    const storedAuth = localStorage.getItem('appAuthenticated');
+    if (storedAuth === 'true') {
+      setIsAuthenticated(true);
+    }
   }, []);
 
   const handleSaveApiKey = () => {
     localStorage.setItem('geminiApiKey', tempApiKey);
     setApiKey(tempApiKey);
     setIsApiKeyModalOpen(false);
+  };
+
+  const handleAuthenticate = () => {
+    if (authCode === 'dc5') {
+      setIsAuthenticated(true);
+      localStorage.setItem('appAuthenticated', 'true');
+      setIsAuthModalOpen(false);
+      setError('');
+    } else {
+      alert('인증 코드가 올바르지 않습니다.');
+    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -63,15 +77,20 @@ export default function App() {
   };
 
   const generatePlan = async () => {
+    if (!isAuthenticated) {
+      setError('코드 인증이 완료되지 않았습니다. 우측 상단에서 인증을 진행해주세요.');
+      setIsAuthModalOpen(true);
+      return;
+    }
+
     const keyToUse = apiKey || process.env.GEMINI_API_KEY;
     if (!keyToUse) {
       setError('API Key가 필요합니다. 우측 상단에서 설정해주세요.');
       return;
     }
 
-    const hasAnyInput = inputText.trim() || targetAudience.trim() || productService.trim() || revenueGoal.trim() || currentStatus.trim();
-    if (!hasAnyInput && files.length === 0) {
-      setError('상세 정보를 하나 이상 입력하거나 참고 문서를 첨부해주세요.');
+    if (!inputText.trim() && files.length === 0) {
+      setError('로드맵 요청사항을 입력하거나 참고 문서를 첨부해주세요.');
       return;
     }
 
@@ -86,12 +105,8 @@ export default function App() {
       
       const prompt = `다음 정보를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해주세요.
 
-[입력된 상세 정보]
-- 타겟 고객: ${targetAudience || '미입력'}
-- 주요 상품/서비스: ${productService || '미입력'}
-- 수익 목표: ${revenueGoal || '미입력'}
-- 현재 상황 및 자원: ${currentStatus || '미입력'}
-- 추가 목표/요청사항: ${inputText || '미입력'}
+[사용자 요청사항]
+- 목표 및 요청사항: ${inputText || '미입력'}
 
 [참고 문서 내용]
 ${parsedFilesText || '(첨부된 문서 없음)'}
@@ -123,6 +138,11 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
         }
       }
       setProgress(100);
+      
+      // Automatically trigger download after completion
+      setTimeout(() => {
+        handleFilesDownload(currentText);
+      }, 500);
     } catch (err: any) {
       console.error(err);
       setError(err.message || '계획 생성 중 오류가 발생했습니다.');
@@ -131,11 +151,14 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
     }
   };
 
-  const downloadDocx = () => {
-    if (!output) return;
+  const handleFilesDownload = (contentOverride?: string) => {
+    const textToDownload = contentOverride || output;
+    if (!textToDownload) return;
 
-    // Parser for the custom spans
-    const paragraphs = output.split('\n').map(line => {
+    const baseFileName = files.length > 0 ? files[0].name.split('.')[0] : "로드맵";
+    
+    // 1. DOCX Generation
+    const paragraphs = textToDownload.split('\n').map(line => {
       const runs: TextRun[] = [];
       const parts = line.split(/(<span.*?>.*?<\/span>)/g);
       
@@ -172,12 +195,22 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
       }]
     });
 
-    const baseFileName = files.length > 0 ? files[0].name.split('.')[0] : "로드맵";
-    const finalFileName = `혁신 수익화 캘린더AI_${baseFileName}.docx`;
+    const docxFileName = `혁신 수익화 캘린더AI_${baseFileName}.docx`;
+    const mdFileName = `혁신 수익화 캘린더AI_${baseFileName}.md`;
 
+    // Download DOCX
     Packer.toBlob(doc).then(blob => {
-      saveAs(blob, finalFileName);
+      saveAs(blob, docxFileName);
     });
+
+    // Download MD (HTML stripped)
+    const cleanOutput = textToDownload.replace(/<[^>]*>?/gm, '');
+    const mdBlob = new Blob([cleanOutput], { type: 'text/markdown;charset=utf-8' });
+    
+    // Tiny timeout to ensure browser allows multiple downloads
+    setTimeout(() => {
+      saveAs(mdBlob, mdFileName);
+    }, 300);
   };
 
   const hasKey = !!(apiKey || process.env.GEMINI_API_KEY);
@@ -232,6 +265,14 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
               <Key className="w-4 h-4 text-amber-400" />
               <span className="hidden sm:inline">API Key</span>
               <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,1)] ${hasKey ? 'bg-emerald-400 shadow-emerald-400/50' : 'bg-red-500 shadow-red-500/50'}`} />
+            </button>
+
+            <button
+              onClick={() => setIsAuthModalOpen(true)}
+              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-bold ${isAuthenticated ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-zinc-800 border-zinc-700 hover:border-amber-400'}`}
+            >
+              <CheckCircle className={`w-4 h-4 ${isAuthenticated ? 'text-emerald-500' : 'text-zinc-500'}`} />
+              <span className="hidden sm:inline">{isAuthenticated ? '인증됨' : '코드 인증'}</span>
             </button>
             
             <button
@@ -326,52 +367,25 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 </div>
               </div>
 
-              {/* 2. Manual Input Section */}
-              <div className={`bg-zinc-900/50 rounded-3xl border transition-all duration-500 p-8 relative overflow-hidden backdrop-blur-sm ${files.length > 0 ? 'border-emerald-500/30 ring-1 ring-emerald-500/20' : 'border-zinc-800'}`}>
-                {files.length > 0 && (
-                  <div className="absolute top-6 right-6 bg-emerald-500 text-black text-[10px] font-black px-3 py-1.5 rounded-full flex items-center gap-1.5 shadow-lg animate-bounce">
-                    <CheckCircle className="w-3 h-3" />
-                    문서 데이터 동기화 완료
-                  </div>
-                )}
-                
+              {/* 2. Roadmap Requirements Section */}
+              <div className="bg-zinc-900/50 rounded-3xl border border-zinc-800 p-8 relative overflow-hidden backdrop-blur-sm group hover:border-amber-400/30 transition-all">
+                <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
                 <h3 className="text-xl font-black text-white mb-4 flex items-center gap-3">
                   <FileText className="w-6 h-6 text-amber-400" />
-                  2. 전략 상세 설정 {files.length > 0 && <span className="text-emerald-400 text-xs">(Auto-filled)</span>}
+                  2. 로드맵 요청사항 (선택사항)
                 </h3>
-                
-                <div className="grid grid-cols-1 gap-4">
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">타겟 고객</label>
-                    <input type="text" value={targetAudience} onChange={e => setTargetAudience(e.target.value)} placeholder="예: 2030 직장인, 1인 사업가..." className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all font-medium" />
-                  </div>
-                  <div className="space-y-1">
-                    <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">주요 상품/서비스</label>
-                    <input type="text" value={productService} onChange={e => setProductService(e.target.value)} placeholder="예: AI 기반 SaaS, 온라인 강의..." className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all font-medium" />
-                  </div>
-                  <div className="grid grid-cols-2 gap-4">
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">수익 목표</label>
-                      <input type="text" value={revenueGoal} onChange={e => setRevenueGoal(e.target.value)} placeholder="예: 월 1000만원" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all font-medium" />
-                    </div>
-                    <div className="space-y-1">
-                      <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500">가용 자원</label>
-                      <input type="text" value={currentStatus} onChange={e => setCurrentStatus(e.target.value)} placeholder="예: 초기 자본 500만원" className="w-full bg-zinc-800 border border-zinc-700 rounded-xl px-4 py-3 text-sm focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all font-medium" />
-                    </div>
-                  </div>
+                <div className="bg-zinc-800/50 p-4 rounded-2xl mb-6 border border-zinc-700">
+                  <p className="text-sm text-zinc-300 leading-relaxed">
+                    로드맵에 반영하고 싶은 구체적인 목표나 요청사항이 있다면 자유롭게 입력해주세요. (필수 아님)
+                  </p>
                 </div>
+                <textarea 
+                  value={inputText} 
+                  onChange={e => setInputText(e.target.value)} 
+                  placeholder="AI에게 특별히 요청하고 싶은 전략 방향이나 세부적인 목표를 입력해주세요." 
+                  className="w-full bg-zinc-800 border-2 border-zinc-700 rounded-2xl px-6 py-4 text-base focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all min-h-[160px] resize-none font-medium"
+                />
               </div>
-            </div>
-
-            {/* Additional Textarea */}
-            <div className="bg-zinc-900/50 rounded-3xl border border-zinc-800 p-8 backdrop-blur-sm">
-              <label className="text-[10px] font-black uppercase tracking-widest text-zinc-500 mb-2 block">로드맵 요청사항 및 추가 목표</label>
-              <textarea 
-                value={inputText} 
-                onChange={e => setInputText(e.target.value)} 
-                placeholder="AI에게 특별히 요청하고 싶은 전략 방향이나 세부적인 목표를 입력해주세요." 
-                className="w-full bg-zinc-800 border border-zinc-700 rounded-2xl px-6 py-4 text-base focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all min-h-[120px] resize-none font-medium h-24"
-              />
             </div>
 
             {error && (
@@ -386,7 +400,7 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
               <button
                 onClick={generatePlan}
                 disabled={loading}
-                className="w-full group relative overflow-hidden py-6 bg-amber-400 hover:bg-amber-300 text-black font-black text-2xl rounded-3xl transition-all disabled:opacity-50 shadow-[0_10px_40px_-10px_rgba(251,191,36,0.5)] active:scale-[0.98]"
+                className={`w-full group relative overflow-hidden py-6 ${isAuthenticated ? 'bg-amber-400 hover:bg-amber-300' : 'bg-zinc-800 cursor-not-allowed opacity-50'} text-black font-black text-2xl rounded-3xl transition-all shadow-[0_10px_40px_-10px_rgba(251,191,36,0.5)] active:scale-[0.98]`}
               >
                 <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:left-[100%] transition-all duration-700 ease-in-out" />
                 <div className="flex items-center justify-center gap-4">
@@ -394,6 +408,11 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                     <>
                       <Loader2 className="w-8 h-8 animate-spin" />
                       <span>로드맵 설계 중...</span>
+                    </>
+                  ) : !isAuthenticated ? (
+                    <>
+                      <CheckCircle className="w-7 h-7 text-zinc-600" />
+                      <span>코드 인증 후 사용 가능</span>
                     </>
                   ) : (
                     <>
@@ -450,11 +469,11 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter">90일 수익화 마스터플랜</h3>
               </div>
               <button
-                onClick={downloadDocx}
+                onClick={handleFilesDownload}
                 className="flex items-center justify-center gap-3 px-8 py-4 bg-white hover:bg-zinc-200 text-black rounded-2xl transition-all text-base font-black shadow-xl active:scale-95"
               >
                 <Download className="w-5 h-5" />
-                <span>DOCX 다운로드</span>
+                <span>DOCX + MD 다운로드</span>
               </button>
             </div>
             
@@ -491,6 +510,45 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
           </div>
         </div>
       </footer>
+
+      {/* Auth Modal */}
+      {isAuthModalOpen && (
+        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[120] p-4">
+          <div className="bg-zinc-900 rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl border border-zinc-800 relative overflow-hidden text-center">
+            <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
+            <div className="bg-amber-400 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
+              <CheckCircle className="w-8 h-8 text-black" />
+            </div>
+            <h3 className="text-2xl font-black text-white italic mb-2 tracking-tighter uppercase">Code Authentication</h3>
+            <p className="text-zinc-500 text-sm mb-8 font-medium">
+              이 앱의 기능을 사용하려면 인증 코드를 입력해야 합니다.
+            </p>
+            
+            <input
+              type="text"
+              value={authCode}
+              onChange={(e) => setAuthCode(e.target.value)}
+              placeholder="인증 코드를 입력하세요"
+              className="w-full bg-zinc-950 border-2 border-zinc-800 rounded-2xl py-4 px-6 text-center text-xl font-black tracking-[0.5em] focus:border-amber-400 outline-none text-white transition-all mb-6"
+            />
+            
+            <div className="flex flex-col gap-3">
+              <button
+                onClick={handleAuthenticate}
+                className="w-full py-4 bg-amber-400 hover:bg-amber-300 text-black font-black rounded-2xl transition-all shadow-lg active:scale-95"
+              >
+                인증하기
+              </button>
+              <button
+                onClick={() => setIsAuthModalOpen(false)}
+                className="w-full py-2 text-zinc-600 hover:text-zinc-400 transition-colors text-xs font-bold uppercase tracking-widest"
+              >
+                나중에 하기
+              </button>
+            </div>
+          </div>
+        </div>
+      )}
 
       {/* API Key Modal */}
       {isApiKeyModalOpen && (
@@ -719,7 +777,7 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                     </li>
                     <li className="flex gap-2">
                       <div className="w-1.5 h-1.5 bg-red-600 rounded-full mt-1.5 flex-shrink-0"></div>
-                      <span className="text-sm text-zinc-300 font-medium"><b>방법 B:</b> 타겟 고객, 상품, 목표 수익 등 상세 정보를 입력 폼에 직접 작성합니다.</span>
+                      <span className="text-sm text-zinc-300 font-medium"><b>방법 B:</b> 로드맵 요청사항을 직접 작성하여 AI에게 구체적인 방향성을 제시합니다.</span>
                     </li>
                   </ul>
                 </div>
