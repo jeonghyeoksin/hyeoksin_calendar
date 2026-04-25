@@ -35,8 +35,9 @@ export default function App() {
   }, []);
 
   const handleSaveApiKey = () => {
-    localStorage.setItem('geminiApiKey', tempApiKey);
-    setApiKey(tempApiKey);
+    const sanitizedKey = tempApiKey.trim().replace(/[^\x00-\x7F]/g, "");
+    localStorage.setItem('geminiApiKey', sanitizedKey);
+    setApiKey(sanitizedKey);
     setIsApiKeyModalOpen(false);
   };
 
@@ -83,7 +84,9 @@ export default function App() {
       return;
     }
 
-    const keyToUse = apiKey || process.env.GEMINI_API_KEY;
+    const rawKey = apiKey || process.env.GEMINI_API_KEY;
+    const keyToUse = rawKey?.trim().replace(/[^\x00-\x7F]/g, "");
+    
     if (!keyToUse) {
       setError('API Key가 필요합니다. 우측 상단에서 설정해주세요.');
       return;
