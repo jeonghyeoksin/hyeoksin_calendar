@@ -42,7 +42,7 @@ export default function App() {
   };
 
   const handleAuthenticate = () => {
-    if (authCode === 'dc5') {
+    if (authCode === 'dc5' || authCode === 'dc4') {
       setIsAuthenticated(true);
       localStorage.setItem('appAuthenticated', 'true');
       setIsAuthModalOpen(false);
@@ -121,7 +121,7 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요. (예: '1일차:', '2일차:' 형식 사용)\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 핵심 키워드나 강조 사항에는 반드시 HTML 태그를 사용하여 다음 3가지 스타일을 입히세요:\n- 진한 파란색: <span style=\"color: #1d4ed8; font-weight: bold;\">텍스트</span>\n- 중요 빨간색: <span style=\"color: #dc2626; font-weight: bold;\">텍스트</span>\n- 꼭 참조해야 할 사항(노란 배경): <span style=\"background-color: #fef08a; padding: 0 4px; border-radius: 4px;\">텍스트</span>\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
+          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요. (예: '1일차:', '2일차:' 형식 사용)\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 핵심 키워드나 강조 사항에는 반드시 HTML 태그를 사용하여 다음 3가지 스타일을 입히세요:\n- 진한 파란색: <span style=\"color: #1d4ed8; font-weight: bold;\">텍스트</span>\n- 중요 빨간색: <span style=\"color: #dc2626; font-weight: bold;\">텍스트</span>\n- 꼭 참조해야 할 사항: <span style=\"color: #000000; font-weight: bold;\">텍스트</span>\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
         }
       });
 
@@ -155,12 +155,10 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
     }
   };
 
-  const handleFilesDownload = (contentOverride?: string) => {
-    const textToDownload = contentOverride || output;
+  const handleFilesDownload = (contentOverride?: string | React.MouseEvent) => {
+    const textToDownload = typeof contentOverride === 'string' ? contentOverride : output;
     if (!textToDownload) return;
 
-    const baseFileName = files.length > 0 ? files[0].name.split('.')[0] : "로드맵";
-    
     // 1. DOCX Generation
     const paragraphs = textToDownload.split('\n').map(line => {
       const runs: TextRun[] = [];
@@ -169,17 +167,14 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
       parts.forEach(part => {
         if (part.startsWith('<span')) {
           const colorMatch = part.match(/color:\s*(#[0-9a-fA-F]{6})/);
-          const bgColorMatch = part.match(/background-color:\s*(#[0-9a-fA-F]{6})/);
           const textMatch = part.match(/>(.*?)<\/span>/);
           const color = colorMatch ? colorMatch[1].replace('#', '') : undefined;
-          const bgColor = bgColorMatch ? bgColorMatch[1].replace('#', '') : undefined;
           const text = textMatch ? textMatch[1] : '';
 
           runs.push(new TextRun({
             text: text,
-            bold: !!color || !!bgColor,
+            bold: !!color,
             color: color || "000000",
-            shading: bgColor ? { fill: bgColor, type: ShadingType.CLEAR, color: "auto" } : undefined
           }));
         } else if (part) {
           runs.push(new TextRun({ text: part, color: "000000" }));
@@ -199,22 +194,12 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
       }]
     });
 
-    const docxFileName = `혁신 수익화 캘린더AI_${baseFileName}.docx`;
-    const mdFileName = `혁신 수익화 캘린더AI_${baseFileName}.md`;
+    const docxFileName = `혁신 수익화 캘린더 AI.docx`;
 
     // Download DOCX
     Packer.toBlob(doc).then(blob => {
       saveAs(blob, docxFileName);
     });
-
-    // Download MD (HTML stripped)
-    const cleanOutput = textToDownload.replace(/<[^>]*>?/gm, '');
-    const mdBlob = new Blob([cleanOutput], { type: 'text/markdown;charset=utf-8' });
-    
-    // Tiny timeout to ensure browser allows multiple downloads
-    setTimeout(() => {
-      saveAs(mdBlob, mdFileName);
-    }, 300);
   };
 
   const hasKey = !!(apiKey || process.env.GEMINI_API_KEY);
@@ -477,13 +462,20 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 className="flex items-center justify-center gap-3 px-8 py-4 bg-white hover:bg-zinc-200 text-black rounded-2xl transition-all text-base font-black shadow-xl active:scale-95"
               >
                 <Download className="w-5 h-5" />
-                <span>DOCX + MD 다운로드</span>
+                <span>DOCX 다운로드</span>
               </button>
             </div>
             
             <div className="prose prose-invert prose-amber max-w-none">
+              <style>{`
+                .preview-content span {
+                  color: white !important;
+                  background-color: transparent !important;
+                  padding: 0 !important;
+                }
+              `}</style>
               <div 
-                className="whitespace-pre-wrap font-sans text-lg leading-[1.8] text-zinc-300 bg-zinc-950 p-10 rounded-[2rem] border border-zinc-800 shadow-inner"
+                className="whitespace-pre-wrap font-sans text-lg leading-[1.8] text-zinc-300 bg-zinc-950 p-10 rounded-[2rem] border border-zinc-800 shadow-inner preview-content"
                 dangerouslySetInnerHTML={{ __html: output }}
               />
             </div>
@@ -660,14 +652,28 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                  <div className="absolute -left-[9px] top-0 w-4 h-4 bg-amber-400 rounded-full border-4 border-zinc-900"></div>
                  <div className="flex items-center gap-3 mb-2">
                     <span className="text-xs font-black bg-amber-400 text-black px-2 py-0.5 rounded">NEW</span>
-                    <span className="text-amber-400 font-bold">v1.6.0</span>
-                    <span className="text-zinc-500 text-xs font-medium">2026.04.19</span>
+                    <span className="text-amber-400 font-bold">v1.7.0</span>
+                    <span className="text-zinc-500 text-xs font-medium">2026.04.27</span>
+                 </div>
+                 <h4 className="text-white font-black text-lg mb-2">지능형 분석 엔진 도입</h4>
+                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                    <li>고도화된 분석 코어 통합으로 로드맵 정확도 향상</li>
+                    <li>사용자 인터페이스 반응성 및 안정성 개선</li>
+                    <li>실시간 업데이트 내역 확인 시스템 강화</li>
+                 </ul>
+              </div>
+
+              <div className="border-l-2 border-zinc-800 pl-6 relative">
+                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
+                 <div className="flex items-center gap-3 mb-2">
+                    <span className="text-zinc-500 font-bold">v1.6.0</span>
+                    <span className="text-zinc-600 text-xs font-medium">2026.04.19</span>
                  </div>
                  <h4 className="text-white font-black text-lg mb-2">시스템 고도화 및 패치노트 도입</h4>
                  <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>실시간 업데이트 확인을 위한 패치노트 시스템 도입</li>
-                    <li>예상 API 운영 비용 안내 (KRW 표시)</li>
-                    <li>기능별 비용 가이드 및 편차 안내 팝업 추가</li>
+                    <li>업데이트 소식을 즉시 확인할 수 있는 시스템 도입</li>
+                    <li>예상 운영 비용 안내 시스템 추가</li>
+                    <li>도움말 및 가이드 팝업 기능 확장</li>
                  </ul>
               </div>
 
@@ -677,10 +683,10 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                     <span className="text-zinc-500 font-bold">v1.5.0</span>
                     <span className="text-zinc-600 text-xs font-medium">2026.04.19</span>
                  </div>
-                 <h4 className="text-white font-black text-lg mb-2">지원 채널 통합</h4>
+                 <h4 className="text-white font-black text-lg mb-2">고객 지원 채널 통합</h4>
                  <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>혁신 AI 공식 웹사이트(hyeoksinai.com) 바로가기 추가</li>
-                    <li>오류 및 유지보수 이메일(info@nextin.ai.kr) 원클릭 지원창 추가</li>
+                    <li>공식 웹사이트 및 고객 센터 바로가기 추가</li>
+                    <li>원클릭 문의 및 피드백 전송 시스템 구축</li>
                  </ul>
               </div>
 
@@ -690,12 +696,12 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                     <span className="text-zinc-500 font-bold">v1.4.0</span>
                     <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
                  </div>
-                 <h4 className="text-white font-black text-lg mb-2">디자인 엔진 및 DOCX 모듈 강화</h4>
+                 <h4 className="text-white font-black text-lg mb-2">디자인 및 문서 생성 기능 강화</h4>
                  <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
                     <li>블랙/골드/레드 프리미엄 테마 적용</li>
-                    <li>사용방법(How-to) 가이드 시스템 도입</li>
-                    <li>DOCX 다운로드 시 강조 색상 매핑 동기화</li>
-                    <li>첨부 파일명 기반 동적 파일명 생성 기능</li>
+                    <li>사용방법 안내 가이드 시스템 도입</li>
+                    <li>문서 저장 시 강조 색상 동기화 개선</li>
+                    <li>첨부 파일 기반 자동 파일명 생성 기능</li>
                  </ul>
               </div>
 
@@ -707,8 +713,8 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                  </div>
                  <h4 className="text-white font-black text-lg mb-2">진행 과정 시각화</h4>
                  <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>90일 로드맵 생성률 % 트래킹 바 도입</li>
-                    <li>공유 시 메타데이터(혁신 수익화 캘린더 AI) 최적화</li>
+                    <li>로드맵 생성률 실시간 표시 바 도입</li>
+                    <li>공유 시 최적화된 정보 표시 시스템 적용</li>
                  </ul>
               </div>
 
@@ -720,8 +726,8 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                  </div>
                  <h4 className="text-white font-black text-lg mb-2">최초 릴리즈</h4>
                  <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>Gemini AI 기반 90일 수익화 로드맵 엔진 개발</li>
-                    <li>문서 분석 기술(Mammoth) 통합</li>
+                    <li>수익화 로드맵 생성 엔진 개발</li>
+                    <li>문서 분석 및 자동 요약 기술 통합</li>
                  </ul>
               </div>
             </div>
