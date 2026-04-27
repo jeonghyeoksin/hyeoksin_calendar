@@ -5,6 +5,86 @@ import { Document, Packer, Paragraph, TextRun, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
 import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info } from 'lucide-react';
 
+interface PatchNote {
+  version: string;
+  date: string;
+  title: string;
+  changes: string[];
+}
+
+const PATCH_NOTES: PatchNote[] = [
+  {
+    version: 'v1.8.0',
+    date: '2026.04.27',
+    title: '로드맵 출력 및 다운로드 엔진 최적화',
+    changes: [
+      'DOCX 다운로드 시스템 단일화 및 문서 구조 개선',
+      '파일명 "혁신 수익화 캘린더 AI.docx"로 정체성 강화',
+      '미리보기 강조 텍스트 시인성 및 스타일링 최적화',
+      '보안 인증 시스템 강화 (신규 인증 코드 추가)',
+      '출력물 내 불필요한 배경색 제거로 전문성 향상'
+    ]
+  },
+  {
+    version: 'v1.7.0',
+    date: '2026.04.27',
+    title: '지능형 분석 엔진 도입',
+    changes: [
+      '고도화된 분석 코어 통합으로 로드맵 정확도 향상',
+      '사용자 인터페이스 반응성 및 안정성 개선',
+      '실시간 업데이트 내역 확인 시스템 강화'
+    ]
+  },
+  {
+    version: 'v1.6.0',
+    date: '2026.04.19',
+    title: '시스템 고도화 및 패치노트 도입',
+    changes: [
+      '업데이트 소식을 즉시 확인할 수 있는 시스템 도입',
+      '예상 운영 비용 안내 시스템 추가',
+      '도움말 및 가이드 팝업 기능 확장'
+    ]
+  },
+  {
+    version: 'v1.5.0',
+    date: '2026.04.19',
+    title: '고객 지원 채널 통합',
+    changes: [
+      '공식 웹사이트 및 고객 센터 바로가기 추가',
+      '원클릭 문의 및 피드백 전송 시스템 구축'
+    ]
+  },
+  {
+    version: 'v1.4.0',
+    date: '2026.04.18',
+    title: '디자인 및 문서 생성 기능 강화',
+    changes: [
+      '블랙/골드/레드 프리미엄 테마 적용',
+      '사용방법 안내 가이드 시스템 도입',
+      '문서 저장 시 강조 색상 동기화 개선',
+      '첨부 파일 기반 자동 파일명 생성 기능'
+    ]
+  },
+  {
+    version: 'v1.3.0',
+    date: '2026.04.18',
+    title: '진행 과정 시각화',
+    changes: [
+      '로드맵 생성률 실시간 표시 바 도입',
+      '공유 시 최적화된 정보 표시 시스템 적용'
+    ]
+  },
+  {
+    version: 'v1.0.0',
+    date: '2026.04.18',
+    title: '최초 릴리즈',
+    changes: [
+      '수익화 로드맵 생성 엔진 개발',
+      '문서 분석 및 자동 요약 기술 통합'
+    ]
+  }
+];
+
 export default function App() {
   const [apiKey, setApiKey] = useState('');
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
@@ -648,88 +728,32 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
             </div>
 
             <div className="space-y-6 max-h-[60vh] overflow-y-auto pr-4 custom-scrollbar">
-              <div className="border-l-2 border-amber-400 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-amber-400 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-3 mb-2">
-                    <span className="text-xs font-black bg-amber-400 text-black px-2 py-0.5 rounded">NEW</span>
-                    <span className="text-amber-400 font-bold">v1.7.0</span>
-                    <span className="text-zinc-500 text-xs font-medium">2026.04.27</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">지능형 분석 엔진 도입</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>고도화된 분석 코어 통합으로 로드맵 정확도 향상</li>
-                    <li>사용자 인터페이스 반응성 및 안정성 개선</li>
-                    <li>실시간 업데이트 내역 확인 시스템 강화</li>
-                 </ul>
-              </div>
+              {PATCH_NOTES.map((note, index) => {
+                const patchDate = new Date(note.date.replace(/\./g, '-'));
+                const now = new Date();
+                const diffTime = Math.abs(now.getTime() - patchDate.getTime());
+                const diffDays = diffTime / (1000 * 60 * 60 * 24);
+                const isNewPatch = diffDays <= 3;
 
-              <div className="border-l-2 border-zinc-800 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-3 mb-2">
-                    <span className="text-zinc-500 font-bold">v1.6.0</span>
-                    <span className="text-zinc-600 text-xs font-medium">2026.04.19</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">시스템 고도화 및 패치노트 도입</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>업데이트 소식을 즉시 확인할 수 있는 시스템 도입</li>
-                    <li>예상 운영 비용 안내 시스템 추가</li>
-                    <li>도움말 및 가이드 팝업 기능 확장</li>
-                 </ul>
-              </div>
-
-              <div className="border-l-2 border-zinc-800 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-zinc-500 font-bold">v1.5.0</span>
-                    <span className="text-zinc-600 text-xs font-medium">2026.04.19</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">고객 지원 채널 통합</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>공식 웹사이트 및 고객 센터 바로가기 추가</li>
-                    <li>원클릭 문의 및 피드백 전송 시스템 구축</li>
-                 </ul>
-              </div>
-
-              <div className="border-l-2 border-zinc-800 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-zinc-500 font-bold">v1.4.0</span>
-                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">디자인 및 문서 생성 기능 강화</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>블랙/골드/레드 프리미엄 테마 적용</li>
-                    <li>사용방법 안내 가이드 시스템 도입</li>
-                    <li>문서 저장 시 강조 색상 동기화 개선</li>
-                    <li>첨부 파일 기반 자동 파일명 생성 기능</li>
-                 </ul>
-              </div>
-
-              <div className="border-l-2 border-zinc-800 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-zinc-500 font-bold">v1.3.0</span>
-                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">진행 과정 시각화</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>로드맵 생성률 실시간 표시 바 도입</li>
-                    <li>공유 시 최적화된 정보 표시 시스템 적용</li>
-                 </ul>
-              </div>
-
-              <div className="border-l-2 border-zinc-800 pl-6 relative">
-                 <div className="absolute -left-[9px] top-0 w-4 h-4 bg-zinc-800 rounded-full border-4 border-zinc-900"></div>
-                 <div className="flex items-center gap-2 mb-2">
-                    <span className="text-zinc-500 font-bold">v1.0.0</span>
-                    <span className="text-zinc-600 text-xs font-medium">2026.04.18</span>
-                 </div>
-                 <h4 className="text-white font-black text-lg mb-2">최초 릴리즈</h4>
-                 <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
-                    <li>수익화 로드맵 생성 엔진 개발</li>
-                    <li>문서 분석 및 자동 요약 기술 통합</li>
-                 </ul>
-              </div>
+                return (
+                  <div key={note.version} className={`border-l-2 ${index === 0 ? 'border-amber-400' : 'border-zinc-800'} pl-6 relative`}>
+                    <div className={`absolute -left-[9px] top-0 w-4 h-4 ${index === 0 ? 'bg-amber-400' : 'bg-zinc-800'} rounded-full border-4 border-zinc-900`}></div>
+                    <div className="flex items-center gap-3 mb-2">
+                       {isNewPatch && (
+                         <span className="text-xs font-black bg-amber-400 text-black px-2 py-0.5 rounded animate-pulse">NEW</span>
+                       )}
+                       <span className={`${index === 0 ? 'text-amber-400' : 'text-zinc-500'} font-bold`}>{note.version}</span>
+                       <span className="text-zinc-600 text-xs font-medium">{note.date}</span>
+                    </div>
+                    <h4 className="text-white font-black text-lg mb-2">{note.title}</h4>
+                    <ul className="text-zinc-400 text-sm space-y-2 list-disc list-inside">
+                       {note.changes.map((change, i) => (
+                         <li key={i}>{change}</li>
+                       ))}
+                    </ul>
+                  </div>
+                );
+              })}
             </div>
 
             <div className="mt-10 pt-8 border-t border-zinc-800">
