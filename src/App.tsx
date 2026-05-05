@@ -14,6 +14,15 @@ interface PatchNote {
 
 const PATCH_NOTES: PatchNote[] = [
   {
+    version: 'v1.9.0',
+    date: '2026.05.05',
+    title: '사용자 편의성 개편',
+    changes: [
+      '앱 이용 시 필요했던 코드 인증 단계 삭제',
+      '누구나 즉시 앱에 접근하여 이용할 수 있도록 접근성 향상'
+    ]
+  },
+  {
     version: 'v1.8.0',
     date: '2026.04.27',
     title: '로드맵 출력 및 다운로드 엔진 최적화',
@@ -92,9 +101,6 @@ export default function App() {
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const [isApiCostModalOpen, setIsApiCostModalOpen] = useState(false);
-  const [isAuthenticated, setIsAuthenticated] = useState(false);
-  const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
-  const [authCode, setAuthCode] = useState('');
   const [tempApiKey, setTempApiKey] = useState('');
   const [inputText, setInputText] = useState('');
   const [files, setFiles] = useState<File[]>([]);
@@ -108,10 +114,6 @@ export default function App() {
     if (storedKey) {
       setApiKey(storedKey);
     }
-    const storedAuth = localStorage.getItem('appAuthenticated');
-    if (storedAuth === 'true') {
-      setIsAuthenticated(true);
-    }
   }, []);
 
   const handleSaveApiKey = () => {
@@ -119,17 +121,6 @@ export default function App() {
     localStorage.setItem('geminiApiKey', sanitizedKey);
     setApiKey(sanitizedKey);
     setIsApiKeyModalOpen(false);
-  };
-
-  const handleAuthenticate = () => {
-    if (authCode === 'dc5' || authCode === 'dc4') {
-      setIsAuthenticated(true);
-      localStorage.setItem('appAuthenticated', 'true');
-      setIsAuthModalOpen(false);
-      setError('');
-    } else {
-      alert('인증 코드가 올바르지 않습니다.');
-    }
   };
 
   const handleFileChange = (e: React.ChangeEvent<HTMLInputElement>) => {
@@ -158,12 +149,6 @@ export default function App() {
   };
 
   const generatePlan = async () => {
-    if (!isAuthenticated) {
-      setError('코드 인증이 완료되지 않았습니다. 우측 상단에서 인증을 진행해주세요.');
-      setIsAuthModalOpen(true);
-      return;
-    }
-
     const rawKey = apiKey || process.env.GEMINI_API_KEY;
     const keyToUse = rawKey?.trim().replace(/[^\x00-\x7F]/g, "");
     
@@ -335,14 +320,6 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
               <span className="hidden sm:inline">API Key</span>
               <div className={`w-2.5 h-2.5 rounded-full shadow-[0_0_8px_rgba(0,0,0,1)] ${hasKey ? 'bg-emerald-400 shadow-emerald-400/50' : 'bg-red-500 shadow-red-500/50'}`} />
             </button>
-
-            <button
-              onClick={() => setIsAuthModalOpen(true)}
-              className={`flex items-center gap-2 px-4 py-2 rounded-full border transition-all text-sm font-bold ${isAuthenticated ? 'bg-emerald-500/10 border-emerald-500 text-emerald-500' : 'bg-zinc-800 border-zinc-700 hover:border-amber-400'}`}
-            >
-              <CheckCircle className={`w-4 h-4 ${isAuthenticated ? 'text-emerald-500' : 'text-zinc-500'}`} />
-              <span className="hidden sm:inline">{isAuthenticated ? '인증됨' : '코드 인증'}</span>
-            </button>
             
             <button
               onClick={() => setIsHowToUseOpen(true)}
@@ -469,7 +446,7 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
               <button
                 onClick={generatePlan}
                 disabled={loading}
-                className={`w-full group relative overflow-hidden py-6 ${isAuthenticated ? 'bg-amber-400 hover:bg-amber-300' : 'bg-zinc-800 cursor-not-allowed opacity-50'} text-black font-black text-2xl rounded-3xl transition-all shadow-[0_10px_40px_-10px_rgba(251,191,36,0.5)] active:scale-[0.98]`}
+                className={`w-full group relative overflow-hidden py-6 bg-amber-400 hover:bg-amber-300 text-black font-black text-2xl rounded-3xl transition-all shadow-[0_10px_40px_-10px_rgba(251,191,36,0.5)] active:scale-[0.98]`}
               >
                 <div className="absolute top-0 left-[-100%] w-full h-full bg-gradient-to-r from-transparent via-white/40 to-transparent group-hover:left-[100%] transition-all duration-700 ease-in-out" />
                 <div className="flex items-center justify-center gap-4">
@@ -477,11 +454,6 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                     <>
                       <Loader2 className="w-8 h-8 animate-spin" />
                       <span>로드맵 설계 중...</span>
-                    </>
-                  ) : !isAuthenticated ? (
-                    <>
-                      <CheckCircle className="w-7 h-7 text-zinc-600" />
-                      <span>코드 인증 후 사용 가능</span>
                     </>
                   ) : (
                     <>
@@ -586,45 +558,6 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
           </div>
         </div>
       </footer>
-
-      {/* Auth Modal */}
-      {isAuthModalOpen && (
-        <div className="fixed inset-0 bg-black/90 backdrop-blur-md flex items-center justify-center z-[120] p-4">
-          <div className="bg-zinc-900 rounded-[2.5rem] p-10 w-full max-w-md shadow-2xl border border-zinc-800 relative overflow-hidden text-center">
-            <div className="absolute top-0 left-0 w-full h-1 bg-amber-400"></div>
-            <div className="bg-amber-400 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6">
-              <CheckCircle className="w-8 h-8 text-black" />
-            </div>
-            <h3 className="text-2xl font-black text-white italic mb-2 tracking-tighter uppercase">Code Authentication</h3>
-            <p className="text-zinc-500 text-sm mb-8 font-medium">
-              이 앱의 기능을 사용하려면 인증 코드를 입력해야 합니다.
-            </p>
-            
-            <input
-              type="text"
-              value={authCode}
-              onChange={(e) => setAuthCode(e.target.value)}
-              placeholder="인증 코드를 입력하세요"
-              className="w-full bg-zinc-950 border-2 border-zinc-800 rounded-2xl py-4 px-6 text-center text-xl font-black tracking-[0.5em] focus:border-amber-400 outline-none text-white transition-all mb-6"
-            />
-            
-            <div className="flex flex-col gap-3">
-              <button
-                onClick={handleAuthenticate}
-                className="w-full py-4 bg-amber-400 hover:bg-amber-300 text-black font-black rounded-2xl transition-all shadow-lg active:scale-95"
-              >
-                인증하기
-              </button>
-              <button
-                onClick={() => setIsAuthModalOpen(false)}
-                className="w-full py-2 text-zinc-600 hover:text-zinc-400 transition-colors text-xs font-bold uppercase tracking-widest"
-              >
-                나중에 하기
-              </button>
-            </div>
-          </div>
-        </div>
-      )}
 
       {/* API Key Modal */}
       {isApiKeyModalOpen && (
