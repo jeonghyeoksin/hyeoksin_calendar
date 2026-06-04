@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
-import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info } from 'lucide-react';
+import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info, Copy, ExternalLink } from 'lucide-react';
 
 interface PatchNote {
   version: string;
@@ -13,6 +13,73 @@ interface PatchNote {
 }
 
 const PATCH_NOTES: PatchNote[] = [
+  {
+    version: 'v1.15.0',
+    date: '2026.06.04',
+    title: '휴먼 라이팅 인공지능 극도의 정제 및 참고 문서 정밀 매핑',
+    changes: [
+      '수익화 마스터 플랜 내 "여정" 단어의 전면적인 사용 금지 지정 및 기계적 AI 스러운 어투 원천 차단',
+      '실제 비즈니스 가이드처럼 자연스럽고 실무 중심적인 사람 어투(~해요, ~합니다)로 전체 90일 고도화',
+      '사용자가 제공한 "수익화발굴" 및 "트렌드 AI" 분석 자료에 기재된 아이템과 솔루션을 100% 반영한 고밀도 수익 전술 작성 완성'
+    ]
+  },
+  {
+    version: 'v1.14.0',
+    date: '2026.06.04',
+    title: 'Google Gemini 전용 로드맵 및 서론 가이드 최적화',
+    changes: [
+      '로드맵 내 생성형 AI 도구를 Google Gemini로 완벽히 일원화하여 통일된 품질 설계',
+      '문서 생성 시 고정형 맞춤 서론("혁신AI에 있는 기능들을 최대한 활용하고...")을 최상단에 안정 배치',
+      '사용자 트렌드 분석 문서와 Google Docs 복사 프로세스의 연동 안정성 상향'
+    ]
+  },
+  {
+    version: 'v1.13.0',
+    date: '2026.06.04',
+    title: '실전 도구 결합형 수익화 실행 최적화',
+    changes: [
+      '로드맵 내에서 혁신AI 추천 방식 대신 실제 비즈니스 진행에 필요한 외부 전문 툴(Canva, Google Sheets, ChatGPT 등)을 실습에 적용하도록 가이드 변경',
+      '초보자 실천력 향상을 위한 실무 기반 도구 사용 방법 및 프롬프트 가이드 구체화',
+      '혁신AI의 신규 기능 및 업데이트 요구에 대비해 마지막 90일차 멘토링 멘트에 개발자 정혁신 상시 피드백 파트너십 안내 통합'
+    ]
+  },
+  {
+    version: 'v1.12.0',
+    date: '2026.06.04',
+    title: '정밀 맞춤형 90일 실행안 직결 고도화',
+    changes: [
+      '로드맵 시작 시 인사말 및 서론 부을 완전히 생략하고 즉시 1일차 가이드라인부터 직결되도록 개선',
+      '1일부터 90일까지 각 일차(1~90) 누락 및 묶음 현상 없이 매일의 맞춤형 실천 방안을 극도로 세분화',
+      '수이화 발굴 및 트렌드 분석 등 사용자가 업로드한 참고 문서를 적극 연동한 1:1 개인화 전략 수립',
+      '비즈니스 첫걸음을 떼는 이들을 위한 실제 멘토의 인간적이고 친근한 휴먼 라이팅(~해요, ~합니다) 완착',
+      '개발자 정혁신과의 혁신AI 고도화 피드백 시스템 파트너십 멘트 로드맵 내 자동 연동 완성',
+      '가독성을 저해하는 텍스트 밑줄 및 불필요한 마크다운 문법 완전 제거'
+    ]
+  },
+  {
+    version: 'v1.11.0',
+    date: '2026.06.04',
+    title: '휴먼 라이팅 엔진 및 정혁신 파트너십 업데이트',
+    changes: [
+      '인공지능 특유의 어색함을 지워버린 친근하고 상세한 "사람 어투(~해요, ~합니다)" 인공지능 정규 고도화',
+      '혁신AI의 실질적인 모든 기능을 극대화하여 90일 계획에 유기적으로 연동 완료',
+      '혁신AI에 추가하고 싶은 기능 제안 시 개발자 정혁신에게 문의할 수 있는 정식 피드백 프로세스 추가',
+      '1일차부터 90일차까지 초보자 눈높이에 맞춰 세부 가이드라인의 완전한 대화식 심층 서술'
+    ]
+  },
+  {
+    version: 'v1.10.0',
+    date: '2026.06.04',
+    title: '수익화 기획 및 Docs 연동 대규모 업그레이드',
+    changes: [
+      '수익화 발굴 및 트렌드 분석 문서를 토대로 무조건 성공하는 정밀 딥리서치 계획 수립',
+      '초보자도 100% 실행할 수 있는 일 단위 아주 친절하고 상세한 정보 제공',
+      '가독성을 저해하는 텍스트 밑줄 표기법 완전히 제거',
+      '자동 다운로드 기능을 제거해 깔끔한 단일 뷰 완성',
+      '구글 문서에 완벽한 서식으로 즉시 붙여넣어지는 "Docs 복사하기" 기능 추가',
+      '원클릭 구글 문서 열기를 돕기 위한 "Docs 바로가기" 링크 탑재'
+    ]
+  },
   {
     version: 'v1.9.0',
     date: '2026.05.05',
@@ -108,6 +175,7 @@ export default function App() {
   const [output, setOutput] = useState('');
   const [error, setError] = useState('');
   const [progress, setProgress] = useState(0);
+  const [isCopied, setIsCopied] = useState(false);
 
   useEffect(() => {
     const storedKey = localStorage.getItem('geminiApiKey');
@@ -172,21 +240,21 @@ export default function App() {
       const ai = new GoogleGenAI({ apiKey: keyToUse });
       const parsedFilesText = await parseFiles(files);
       
-      const prompt = `다음 정보를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해주세요.
+      const prompt = `다음 사용자 요청사항과 첨부한 참고 자료('수익화 발굴', '트렌드 분석' 등의 참고 문서)를 깊이 있게 분석 및 딥리서치하여, 90일(3개월) 동안 이대로만 실행하면 누구나 무조건 실제 수익화를 경험하고 안정적인 파이프라인을 구축할 수 있는 초고성능 맞춤형 실행 로드맵을 작성해 주세요.
 
-[사용자 요청사항]
-- 목표 및 요청사항: ${inputText || '미입력'}
+[사용자 요청사항 및 목표]
+- ${inputText || '미입력'}
 
-[참고 문서 내용]
-${parsedFilesText || '(첨부된 문서 없음)'}
+[참고 문서 내용 분석 대상]
+${parsedFilesText || '(현재 사용자 업로드 참 문서 없음. 일반적인 AI 비즈니스 수익화 트렌드 및 최첨단 발굴 기법을 적용하세요)'}
 
-위의 정보들을 종합하여 가장 효과적이고 혁신적인 90일 수익화 캘린더를 제안해주세요.`;
+위 첨부파일에 명시된 비즈니스 트렌드, 수익화 아이템 목록, 기획 전략 데이터를 로드맵 90일 전체 일과 속에 구체적으로 연동하고, 각 일차(1~90일차)마다 누락이나 묶음 없이 개별적이고 매우 상세한 맞춤 실행 과제를 도출해 주세요.`;
 
       const responseStream = await ai.models.generateContentStream({
         model: 'gemini-3-flash-preview',
         contents: prompt,
         config: {
-          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고 자료를 바탕으로 2026년 수익화를 위한 90일(3개월) 로드맵을 작성해야 합니다.\n\n중요 규칙:\n1. 1일부터 90일까지 하루도 빠짐없이 90일치 계획을 모두 작성하세요. (예: '1일차:', '2일차:' 형식 사용)\n2. 마크다운 문법(*, #, - 등)을 절대 사용하지 마세요.\n3. 가독성을 위해 두 문단마다 반드시 한 줄의 빈 줄(띄어쓰기)을 추가하세요.\n4. 내용 중 핵심 키워드나 강조 사항에는 반드시 HTML 태그를 사용하여 다음 3가지 스타일을 입히세요:\n- 진한 파란색: <span style=\"color: #1d4ed8; font-weight: bold;\">텍스트</span>\n- 중요 빨간색: <span style=\"color: #dc2626; font-weight: bold;\">텍스트</span>\n- 꼭 참조해야 할 사항: <span style=\"color: #000000; font-weight: bold;\">텍스트</span>\n5. 각 일차별로 구체적이고 실천 가능한 행동 계획을 제시하세요.",
+          systemInstruction: "당신은 AI를 활용한 수익화 전략 전문가입니다. 사용자의 목표와 첨부된 참고자료('수익화 발굴', '트렌드 분석', '수익화발굴', '트렌드 ai' 등)의 상세한 내용을 완벽히 융합하여 무조건 성공할 수밖에 없는 90일(3개월) 초정밀 실행 캘린더를 작성해야 합니다.\n\n[핵심 생성 및 스타일 규칙 - 절대 준수]\n1. 맨 첫 줄(서론)에는 어떠한 환영 인사나 다른 설명도 일체 작성하지 말고, 오직 다음의 정확한 한 문장만을 그대로 출력한 다음 한 줄 띄우고 즉시 '1일차:' 본론으로 넘어가야 합니다: \"혁신AI에 있는 기능들을 최대한 활용하고, 상황에 따라 다른 Tool을 같이 믹스해서 활용하시길 바랍니다.\"\n2. 로드맵 내에서 생성형 AI 도구를 추천하거나 활용하도록 안내할 때는, 다른 인공지능 도구(예: ChatGPT, Claude 등)는 절대 언급하지 말고 오직 **Google Gemini**만을 사용하도록 명확하게 지정하여 안내하세요. (예: \"Google Gemini에 이 프롬프트를 입력해서 기획서를 완성해요~\" 등)\n3. 1일차부터 90일차까지 단 하루도 누락하지 않고 각 일자별 계획을 하나씩('1일차:', '2일차:', '3일차:', ..., '90일차:') 순차적으로 끝까지 전부 세분화하여 기술해야 합니다. 여러 일차를 묶거나(\"1~5일차:\", \"다음 주:\") 생략하는 행위는 일절 금지합니다. 하루하루의 실습 과제와 실천 지침 및 가이드라인이 최대한 구체적으로 자상하게 작성되어야 합니다.\n4. 기계식 어투, 딱딱하고 격식체(~이다, ~한다), 혹은 AI 냄새가 물씬 풍기는 클리셰 표현(예: '지평', '도약', '탐구', '자, 그럼', '길을 나서볼까요' 등)을 완전히 배격하고, 오직 따뜻하고 친근하며 자상한 1:1 실무 멘토 선생님과 같은 극도로 자연스러운 사람 어투(~해요, ~합니다)로만 작성하세요.\n5. [초비상 규정] 로드맵 전체 텍스트 내에서 '여정'이라는 단어는 절대로 단 한 번도 사용하지 마세요. 이는 인위적이고 기형적인 AI식 분위기를 자아내므로 사용이 무조건 엄격하게 금지됩니다. '여정'이 들어갈 만한 자리는 '과정', '실천 단계', '비즈니스 계획', '하루 일과' 등의 일상적인 사람 어휘로 전면 대체하세요.\n6. 작성 시 반드시 첨부된 '수익화발굴' 및 '트렌드 ai' 분석 자료에 명시된 비즈니스 트렌드, 유망 수익화 아이템 목록, 기획 전략 수립 가이드 데이터를 90일 전체에 녹여서 완전히 1대1 개인화 맞춤형 플랜으로 완착시켜 주세요.\n7. 비즈니스 마스터플랜의 실행 과정에서 Google Gemini를 메인 엔진으로 하고, 이와 완벽하게 조화를 이루며 실질적인 성과를 내게 도와주는 기타 무료 실무 도구(예: Canva, Google Sheets, Notion, 특정 SNS 플랫폼 및 통계 분석 툴 등)들을 각 실천 단계에 맞춰 구체적으로 믹스하여 적용할 수 있도록 자세한 활용 지침을 제시해 주세요.\n8. 마지막 날인 '90일차:' 가이드의 끝부분에는 반드시 다음의 문구를 절대 누락하지 않고 토씨 하나 틀리지 않게 그대로 녹여서 함께 포함시켜 작성하세요:\n   \"혁신AI의 기능 외에 추가적으로 꼭 탑재되기를 원하시거나 업데이트를 요구하시는 사항이 있으시다면 언제든 정혁신에게 문의해 주세요. 신속하고 정밀하게 무상 추가 업데이트를 전격 제공해 드립니다!\"\n9. 가독성을 위해 2문단마다 무조건 한 줄의 완전히 빈 줄(개행)을 삽입하세요.\n10. 텍스트 중간, 소제목, 본문 어디에도 밑줄(언더바 `_`, html u 태그 등)을 절대로 사용하지 마세요.\n11. 절대로 마크다운 서식 기호(대표적으로 `#`, `*`, `-` 등의 기호글이나 bullet 기호)를 사용하지 마세요. 대신 다음 3가지의 한정된 HTML 텍스트 태그만을 활용하여 가독성이 높은 색상 하이라이트 조합을 연출하세요:\n- 강조할 청색 텍스트: <span style=\"color: #1d4ed8; font-weight: bold;\">텍스트</span>\n- 중요 경색 텍스트: <span style=\"color: #dc2626; font-weight: bold;\">텍스트</span>\n- 체크/주목용 흑색 텍스트: <span style=\"color: #000000; font-weight: bold;\">텍스트</span>\n12. 초보자나 비즈니스 입문자도 무조건 완벽하게 실행할 수 있을 정도로 '지극히 친절하고 아주 세밀한 1일 가이드라인'으로 서술적으로 작성해 주세요. 예상 소요 시간, Google Gemini용 프롬프트 입력 구문 내용, 체크해야 하는 구체적 산출물 기준을 빠짐없이 넣어야 합니다.",
         }
       });
 
@@ -207,11 +275,6 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
         }
       }
       setProgress(100);
-      
-      // Automatically trigger download after completion
-      setTimeout(() => {
-        handleFilesDownload(currentText);
-      }, 500);
     } catch (err: any) {
       console.error(err);
       setError(err.message || '계획 생성 중 오류가 발생했습니다.');
@@ -220,51 +283,45 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
     }
   };
 
-  const handleFilesDownload = (contentOverride?: string | React.MouseEvent) => {
-    const textToDownload = typeof contentOverride === 'string' ? contentOverride : output;
-    if (!textToDownload) return;
+  const handleCopyDocs = async () => {
+    if (!output) return;
 
-    // 1. DOCX Generation
-    const paragraphs = textToDownload.split('\n').map(line => {
-      const runs: TextRun[] = [];
-      const parts = line.split(/(<span.*?>.*?<\/span>)/g);
-      
-      parts.forEach(part => {
-        if (part.startsWith('<span')) {
-          const colorMatch = part.match(/color:\s*(#[0-9a-fA-F]{6})/);
-          const textMatch = part.match(/>(.*?)<\/span>/);
-          const color = colorMatch ? colorMatch[1].replace('#', '') : undefined;
-          const text = textMatch ? textMatch[1] : '';
+    // Remove any html tags for plain text representation
+    const plainText = output.replace(/<[^>]*>?/gm, '');
 
-          runs.push(new TextRun({
-            text: text,
-            bold: !!color,
-            color: color || "000000",
-          }));
-        } else if (part) {
-          runs.push(new TextRun({ text: part, color: "000000" }));
-        }
-      });
+    // Prepare optimized HTML for pasting on white Google Docs pages
+    // Base font Arial 11pt, default text black, with the dynamic blue/red highlights preserved beautifully!
+    const styledHtml = `
+      <div style="font-family: Arial, sans-serif; font-size: 11pt; color: #1a1a1a; line-height: 1.6; white-space: pre-wrap;">
+        ${output.replace(/\n/g, '<br/>')}
+      </div>
+    `;
 
-      return new Paragraph({
-        children: runs,
-        spacing: { after: 120 }
-      });
-    });
-
-    const doc = new Document({
-      sections: [{
-        properties: {},
-        children: paragraphs
-      }]
-    });
-
-    const docxFileName = `혁신 수익화 캘린더 AI.docx`;
-
-    // Download DOCX
-    Packer.toBlob(doc).then(blob => {
-      saveAs(blob, docxFileName);
-    });
+    try {
+      if (navigator.clipboard && window.ClipboardItem) {
+        const htmlBlob = new Blob([styledHtml], { type: 'text/html' });
+        const textBlob = new Blob([plainText], { type: 'text/plain' });
+        await navigator.clipboard.write([
+          new window.ClipboardItem({
+            'text/html': htmlBlob,
+            'text/plain': textBlob
+          })
+        ]);
+      } else {
+        await navigator.clipboard.writeText(plainText);
+      }
+      setIsCopied(true);
+      setTimeout(() => setIsCopied(false), 2000);
+    } catch (err) {
+      console.error('Clipboard copy failed, using fallback:', err);
+      try {
+        await navigator.clipboard.writeText(plainText);
+        setIsCopied(true);
+        setTimeout(() => setIsCopied(false), 2000);
+      } catch (e) {
+        alert('클립보드 복사에 실패했습니다.');
+      }
+    }
   };
 
   const hasKey = !!(apiKey || process.env.GEMINI_API_KEY);
@@ -509,13 +566,37 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
                 </div>
                 <h3 className="text-3xl md:text-4xl font-black text-white tracking-tighter">90일 수익화 마스터플랜</h3>
               </div>
-              <button
-                onClick={handleFilesDownload}
-                className="flex items-center justify-center gap-3 px-8 py-4 bg-white hover:bg-zinc-200 text-black rounded-2xl transition-all text-base font-black shadow-xl active:scale-95"
-              >
-                <Download className="w-5 h-5" />
-                <span>DOCX 다운로드</span>
-              </button>
+              <div className="flex flex-col sm:flex-row gap-3">
+                <button
+                  onClick={handleCopyDocs}
+                  className={`flex items-center justify-center gap-2 px-6 py-4 rounded-2xl transition-all text-base font-black shadow-xl active:scale-95 border border-transparent ${
+                    isCopied 
+                      ? 'bg-emerald-500 text-white' 
+                      : 'bg-amber-400 hover:bg-amber-300 text-black'
+                  }`}
+                >
+                  {isCopied ? (
+                    <>
+                      <CheckCircle className="w-5 h-5" />
+                      <span>Docs 복사 완료!</span>
+                    </>
+                  ) : (
+                    <>
+                      <Copy className="w-5 h-5" />
+                      <span>Docs 복사하기</span>
+                    </>
+                  )}
+                </button>
+                <a
+                  href="https://docs.google.com/document"
+                  target="_blank"
+                  rel="noopener noreferrer"
+                  className="flex items-center justify-center gap-2 px-6 py-4 bg-zinc-800 hover:bg-zinc-700 text-white border border-zinc-750 hover:border-amber-400/50 rounded-2xl transition-all text-base font-black shadow-xl active:scale-95"
+                >
+                  <ExternalLink className="w-5 h-5 text-amber-400" />
+                  <span>Docs 바로가기</span>
+                </a>
+              </div>
             </div>
             
             <div className="prose prose-invert prose-amber max-w-none">
@@ -753,19 +834,19 @@ ${parsedFilesText || '(첨부된 문서 없음)'}
               <div className="flex gap-6">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-amber-400 text-2xl font-black flex-shrink-0 border border-zinc-700">3</div>
                 <div>
-                  <h4 className="text-xl font-bold text-white mb-2 italic">로드맵 생성 및 커스터마이징</h4>
-                  <p className="text-zinc-400 text-sm leading-relaxed">
-                    <span className="font-bold text-white">"혁신 90일 로드맵 생성"</span> 버튼을 클릭하면 AI가 실시간으로 3개월 치 수익화 플랜을 설계합니다. 중요한 내용은 직관적인 색상(파랑, 빨강, 노랑 배경)으로 표시됩니다.
-                  </p>
+                   <h4 className="text-xl font-bold text-white mb-2 italic">로드맵 생성 및 하이라이트</h4>
+                   <p className="text-zinc-400 text-sm leading-relaxed">
+                     <span className="font-bold text-white">"혁신 90일 로드맵 생성"</span> 버튼을 클릭하면 AI가 실시간으로 3개월 치 수익화 플랜에 관한 초정밀 딥리서치를 시작합니다. 중요 내용은 가독성이 뛰어난 전용 색상(파랑색, 빨강색, 볼드 강조)으로 표시됩니다.
+                   </p>
                 </div>
               </div>
 
               <div className="flex gap-6">
                 <div className="w-12 h-12 rounded-2xl bg-zinc-800 flex items-center justify-center text-amber-400 text-2xl font-black flex-shrink-0 border border-zinc-700">4</div>
                 <div>
-                  <h4 className="text-xl font-bold text-white mb-2 italic">결과물 보관 (DOCX)</h4>
+                  <h4 className="text-xl font-bold text-white mb-2 italic">구글 문서(Google Docs) 보관 및 기획</h4>
                   <p className="text-zinc-400 text-sm leading-relaxed">
-                    생성된 로드맵 하단의 <span className="text-white font-bold underline">DOCX 다운로드</span> 버튼을 통해 워드 문서 형식으로 소장할 수 있습니다. UI에 표시된 강조 색상들이 문서에도 동일하게 반영됩니다.
+                    생성된 로드맵 하단의 <span className="text-amber-400 font-bold">Docs 복사하기</span> 버튼을 누르면 구글 문서에 바로 복사 및 서식 유지가 되도록 최적화된 형태로 클립보드에 복사됩니다. 복사 후 바로 옆 <span className="text-white font-bold underline">Docs 바로가기</span> 버튼을 통해 Google Docs로 이동하여 손쉽게 붙여넣고 즉시 개인 문항을 편집할 수 있습니다.
                   </p>
                 </div>
               </div>
