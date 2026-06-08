@@ -3,7 +3,7 @@ import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
 import { Document, Packer, Paragraph, TextRun, ShadingType } from 'docx';
 import { saveAs } from 'file-saver';
-import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info, Copy, ExternalLink } from 'lucide-react';
+import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info, Copy, ExternalLink, Eye, EyeOff } from 'lucide-react';
 
 interface PatchNote {
   version: string;
@@ -185,6 +185,7 @@ const PATCH_NOTES: PatchNote[] = [
 export default function App() {
   const [apiKey, setApiKey] = useState('');
   const [tempApiKey, setTempApiKey] = useState('');
+  const [showApiKey, setShowApiKey] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isApiCostModalOpen, setIsApiCostModalOpen] = useState(false);
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
@@ -676,12 +677,20 @@ ${parsedFilesText || '(현재 사용자 업로드 참 문서 없음. 일반적�
             <div className="relative mb-8">
               <Key className="absolute left-4 top-1/2 -translate-y-1/2 text-zinc-500 w-5 h-5" />
               <input
-                type="password"
+                type={showApiKey ? 'text' : 'password'}
                 value={tempApiKey}
                 onChange={(e) => setTempApiKey(e.target.value)}
                 placeholder="AIzaSy..."
-                className="w-full bg-zinc-800 border-2 border-zinc-700 rounded-2xl py-4 pl-12 pr-6 text-sm focus:border-amber-400 outline-none text-white transition-all font-mono"
+                className="w-full bg-zinc-800 border-2 border-zinc-700 rounded-2xl py-4 pl-12 pr-12 text-sm focus:border-amber-400 outline-none text-white transition-all font-mono"
               />
+              <button
+                type="button"
+                onClick={() => setShowApiKey(!showApiKey)}
+                className="absolute right-4 top-1/2 -translate-y-1/2 text-zinc-500 hover:text-white transition-colors focus:outline-none"
+                title={showApiKey ? "입력 가리기" : "입력 보기"}
+              >
+                {showApiKey ? <EyeOff className="w-5 h-5" /> : <Eye className="w-5 h-5" />}
+              </button>
             </div>
             <div className="flex flex-col gap-2">
               <button
@@ -709,12 +718,22 @@ ${parsedFilesText || '(현재 사용자 업로드 참 문서 없음. 일반적�
             <div className="bg-amber-400 w-16 h-16 rounded-3xl flex items-center justify-center mx-auto mb-6 shadow-lg shadow-amber-400/20">
               <Info className="w-8 h-8 text-black" />
             </div>
-            <h3 className="text-2xl font-black text-white italic mb-4">ESTIMATED API COST</h3>
+            <h3 className="text-2xl font-black text-white italic mb-2">ESTIMATED API COST</h3>
+            <p className="text-zinc-400 text-xs font-bold mb-6">혁신 수익화 캘린더 AI 사용 시 발생 비용</p>
             
-            <div className="bg-zinc-950 p-6 rounded-3xl border border-zinc-800 mb-6">
-              <p className="text-zinc-500 text-[10px] font-black uppercase tracking-widest mb-1">Price Range (KRW)</p>
-              <p className="text-3xl font-black text-amber-400">₩140 ~ ₩450</p>
-              <p className="text-zinc-600 text-[10px] font-bold mt-2 uppercase tracking-wide">Average: ₩250 per generation</p>
+            <div className="grid grid-cols-3 gap-2 bg-zinc-950 p-4 rounded-3xl border border-zinc-800 mb-6">
+              <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-850/50">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-wider mb-1">최소 비용</p>
+                <p className="text-sm font-black text-emerald-400">₩140</p>
+              </div>
+              <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-850/50">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-wider mb-1">평균 비용</p>
+                <p className="text-sm font-black text-amber-400">₩250</p>
+              </div>
+              <div className="bg-zinc-900/80 p-3 rounded-2xl border border-zinc-850/50">
+                <p className="text-zinc-500 text-[10px] font-black uppercase tracking-wider mb-1">최대 비용</p>
+                <p className="text-sm font-black text-red-500">₩450</p>
+              </div>
             </div>
 
             <div className="space-y-4 text-left bg-zinc-800/30 p-6 rounded-2xl border border-zinc-800 mb-8">
