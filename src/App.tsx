@@ -8,6 +8,7 @@ import { db } from './firebase';
 interface DayMetadata {
   links: string[];
   images: string[];
+  remarks?: string;
 }
 
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
@@ -135,14 +136,20 @@ export default function App() {
   const [newLinkUrl, setNewLinkUrl] = useState('');
   const [newImageUrl, setNewImageUrl] = useState('');
   const [activeInput, setActiveInput] = useState<'link' | 'image' | null>(null);
+  const [editingRemarks, setEditingRemarks] = useState(false);
+  const [remarksText, setRemarksText] = useState('');
 
   useEffect(() => {
     if (!selectedDay) {
       setNewLinkUrl('');
       setNewImageUrl('');
       setActiveInput(null);
+      setEditingRemarks(false);
+      setRemarksText('');
+    } else {
+      setRemarksText(dayMetadata[selectedDay.day]?.remarks || '');
     }
-  }, [selectedDay]);
+  }, [selectedDay, dayMetadata]);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('gemini_api_key');
@@ -491,6 +498,23 @@ export default function App() {
     }
   };
 
+  const handleSaveRemarks = async (day: number) => {
+    const currentMeta = dayMetadata[day] || { links: [], images: [] };
+    const newMeta = {
+      ...dayMetadata,
+      [day]: {
+        ...currentMeta,
+        remarks: remarksText
+      }
+    };
+    setDayMetadata(newMeta);
+    setEditingRemarks(false);
+
+    if (user) {
+      await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+    }
+  };
+
   const removeMetadata = async (type: 'link' | 'image', day: number, index: number) => {
     const currentMeta = dayMetadata[day];
     if (!currentMeta) return;
@@ -510,6 +534,18 @@ export default function App() {
   };
 
   const toggleDayCompletion = async (day: number) => {
+    if (!completedDays[day]) {
+      const meta = dayMetadata[day];
+      const hasLinks = meta?.links && meta.links.length > 0;
+      const hasImages = meta?.images && meta.images.length > 0;
+      const hasRemarks = !!meta?.remarks?.trim();
+
+      if (!hasLinks && !hasImages && !hasRemarks) {
+        alert("참고 링크, 참고 이미지, 비고란 중 하나라도 작성이 되어야 미션 실행 체크가 가능합니다.\n비고란은 참고 링크, 참고 이미지가 없는 경우 작성해주세요.");
+        return;
+      }
+    }
+
     const newCompletedDays = {
       ...completedDays,
       [day]: !completedDays[day]
@@ -786,6 +822,15 @@ export default function App() {
                 <h2 className="text-3xl lg:text-4xl font-black text-white">나의 90일 수익화 캘린더</h2>
              </div>
 
+             <div className="bg-zinc-900/50 border border-amber-400/20 rounded-xl p-4 mb-8 flex gap-3 text-sm">
+                <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
+                <div className="text-zinc-300 leading-relaxed font-semibold">
+                  <p className="font-bold text-amber-400 mb-2">안내사항</p>
+                  <p>나의 90일 수익화 캘린더에 모든 일차별 수익화 미션은 참고 링크, 참고 이미지, 비고란 중 하나라도 작성이 되어야 실행 체크가 가능합니다.</p>
+                  <p>비고란은 참고 링크, 참고 이미지가 없는 경우 작성해주세요.</p>
+                </div>
+             </div>
+
              {calendarsInfo.length > 0 && (
                <div className="mb-8">
                  <div className="flex items-center justify-between mb-4">
@@ -995,7 +1040,7 @@ export default function App() {
                         <div className={`text-sm font-medium leading-relaxed line-clamp-[8] flex-grow ${isCompleted ? 'text-zinc-500 line-through' : 'text-zinc-300'}`}>
                           {d.content}
                         </div>
-                        {((dayMetadata[d.day]?.links?.length || 0) > 0 || (dayMetadata[d.day]?.images?.length || 0) > 0) && (
+                        {((dayMetadata[d.day]?.links?.length || 0) > 0 || (dayMetadata[d.day]?.images?.length || 0) > 0 || !!dayMetadata[d.day]?.remarks?.trim()) && (
                           <div className="mt-4 pt-4 border-t border-zinc-800/50 flex gap-3 text-xs font-bold text-zinc-500">
                             {(dayMetadata[d.day]?.links?.length || 0) > 0 && (
                               <div className="flex items-center gap-1.5 text-amber-500">
@@ -1007,6 +1052,11 @@ export default function App() {
                               <div className="flex items-center gap-1.5 text-amber-500">
                                 <ImageIcon className="w-3.5 h-3.5" />
                                 {dayMetadata[d.day].images.length}
+                              </div>
+                            )}
+                            {!!dayMetadata[d.day]?.remarks?.trim() && (
+                              <div className="flex items-center gap-1.5 text-amber-500">
+                                <FileText className="w-3.5 h-3.5" />
                               </div>
                             )}
                           </div>
@@ -1172,6 +1222,47 @@ export default function App() {
                     </div>
                     {(dayMetadata[selectedDay.day]?.images || []).length === 0 && (
                         <div className="text-zinc-500 text-sm italic px-2">등록된 이미지가 없습니다.</div>
+                    )}
+                 </div>
+
+                 {/* Remarks Section */}
+                 <div>
+                    <div className="flex items-center justify-between mb-3">
+                      <h4 className="text-white font-bold flex items-center gap-2">
+                        <FileText className="w-4 h-4 text-amber-400" />
+                        비고란
+                      </h4>
+                      {!editingRemarks && (
+                        <button onClick={() => setEditingRemarks(true)} className="p-1.5 bg-zinc-800 hover:bg-amber-400 hover:text-black rounded-lg text-zinc-400 transition-colors">
+                          <Edit2 className="w-4 h-4" />
+                        </button>
+                      )}
+                    </div>
+                    {editingRemarks ? (
+                      <div className="animate-in slide-in-from-top-2">
+                        <textarea
+                           value={remarksText}
+                           onChange={(e) => setRemarksText(e.target.value)}
+                           placeholder="비고란은 참고 링크, 참고 이미지가 없는 경우 작성해주세요..."
+                           className="w-full bg-zinc-950 border border-zinc-800 rounded-xl p-4 text-sm outline-none focus:border-amber-400 text-white min-h-[100px] resize-y mb-3"
+                        />
+                        <div className="flex justify-end gap-2">
+                          <button onClick={() => { setEditingRemarks(false); setRemarksText(dayMetadata[selectedDay.day]?.remarks || ''); }} className="px-4 py-2 text-zinc-400 hover:text-white font-bold text-sm">
+                            취소
+                          </button>
+                          <button onClick={() => handleSaveRemarks(selectedDay.day)} className="px-4 py-2 bg-amber-400 text-black font-bold rounded-xl text-sm flex items-center gap-2">
+                            <Check className="w-4 h-4" />
+                            저장
+                          </button>
+                        </div>
+                      </div>
+                    ) : (
+                      <div 
+                        className="bg-zinc-900/50 border border-zinc-800 rounded-xl p-4 text-sm text-zinc-300 min-h-[60px] whitespace-pre-wrap cursor-pointer hover:border-zinc-600 transition-colors"
+                        onClick={() => setEditingRemarks(true)}
+                      >
+                        {dayMetadata[selectedDay.day]?.remarks || <span className="text-zinc-600 italic">비고란은 참고 링크, 참고 이미지가 없는 경우 작성해주세요...</span>}
+                      </div>
                     )}
                  </div>
               </div>
