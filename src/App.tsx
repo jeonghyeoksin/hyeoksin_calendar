@@ -14,6 +14,7 @@ interface DayMetadata {
 import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
 import { AdminDashboard } from './AdminDashboard';
 import { AuthModal } from './AuthModal';
+import { FaqModal } from './FaqModal';
 
 interface PatchNote {
   version: string;
@@ -111,6 +112,7 @@ export default function App() {
   const [showApiKey, setShowApiKey] = useState(false);
   const [isApiKeyModalOpen, setIsApiKeyModalOpen] = useState(false);
   const [isAuthModalOpen, setIsAuthModalOpen] = useState(false);
+  const [isFaqModalOpen, setIsFaqModalOpen] = useState(false);
   const [isApiCostModalOpen, setIsApiCostModalOpen] = useState(false);
   const [isPatchNotesOpen, setIsPatchNotesOpen] = useState(false);
   const [isHowToUseOpen, setIsHowToUseOpen] = useState(false);
@@ -577,6 +579,13 @@ export default function App() {
           </button>
           
           <div className="flex items-center gap-2 md:gap-4">
+            <button
+              onClick={() => setIsFaqModalOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/50 transition-all text-sm font-bold"
+            >
+              <HelpCircle className="w-4 h-4" />
+              <span className="hidden sm:inline">FAQ</span>
+            </button>
             {user && (
               <button
                 onClick={() => setCurrentTab(currentTab === 'create' ? 'mypage' : 'create')}
@@ -1359,6 +1368,9 @@ export default function App() {
 
       {/* Auth Modal */}
       <AuthModal isOpen={isAuthModalOpen} onClose={() => setIsAuthModalOpen(false)} />
+
+      {/* FAQ Modal */}
+      <FaqModal isOpen={isFaqModalOpen} onClose={() => setIsFaqModalOpen(false)} />
 
       {/* API Cost Modal */}
       {isApiCostModalOpen && (
