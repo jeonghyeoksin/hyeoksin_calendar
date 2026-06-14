@@ -86,7 +86,11 @@ export function AuthModal({ isOpen, onClose }: AuthModalProps) {
       await signIn(); // uses existing google popup flow
       onClose();
     } catch (err: any) {
-      setError(err.message || 'Google 로그인 중 오류가 발생했습니다.');
+      if (err.code === 'auth/unauthorized-domain') {
+        setError('현재 도메인이 Firebase 인증에 등록되지 않았습니다. Firebase 콘솔(Authentication > Settings > Authorized domains)에서 현재 접속 중인 도메인을 추가해주세요.');
+      } else {
+        setError(err.message || 'Google 로그인 중 오류가 발생했습니다.');
+      }
     } finally {
       setLoading(false);
     }
