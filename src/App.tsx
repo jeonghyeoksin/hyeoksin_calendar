@@ -25,6 +25,18 @@ interface PatchNote {
 
 const PATCH_NOTES: PatchNote[] = [
   {
+    version: 'v1.18.0',
+    date: '2026.06.14',
+    title: '참고 링크/이미지/비고란 연동 완료 및 FAQ/패치노트 시스템 고도화',
+    changes: [
+      '모든 일차별 수익화 미션 실행 체크 시 참고 링크, 참고 이미지, 혹은 비고란 중 하나라도 필수 작성해야 하도록 제약 강화',
+      '참고 자료가 모호하거나 없을 시 대응할 수 있도록 비고란 작성 유도 문구 보완',
+      '마이페이지 내 90일 수익화 캘린더 안내사항(체크 필수 자격 등) 눈에 띄게 추가 배치',
+      '우측 상단 자주묻는질문(FAQ) 모달 추가: 회원가입 조건 및 마이페이지 현황 체크 제어 기능 가이드 상시 오픈',
+      '우측 상단 패치노트 전용 버튼 추가: 최신 업데이트 및 비즈니스 로드맵 고도화 이력 확인 기능 제공'
+    ]
+  },
+  {
     version: 'v1.17.0',
     date: '2026.06.05',
     title: '1일차 혁신AI 초기 탐색 도구 3종 집중 배치 완료',
@@ -585,6 +597,14 @@ export default function App() {
             >
               <HelpCircle className="w-4 h-4" />
               <span className="hidden sm:inline">FAQ</span>
+            </button>
+            <button
+              onClick={() => setIsPatchNotesOpen(true)}
+              className="flex items-center gap-2 px-3 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/50 transition-all text-sm font-bold animate-pulse text-amber-400"
+              title="패치노트"
+            >
+              <FileText className="w-4 h-4" />
+              <span className="hidden sm:inline">패치노트</span>
             </button>
             {user && (
               <button
