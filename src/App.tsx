@@ -591,21 +591,6 @@ export default function App() {
           </button>
           
           <div className="flex items-center gap-2 md:gap-4">
-            <button
-              onClick={() => setIsFaqModalOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/50 transition-all text-sm font-bold"
-            >
-              <HelpCircle className="w-4 h-4" />
-              <span className="hidden sm:inline">FAQ</span>
-            </button>
-            <button
-              onClick={() => setIsPatchNotesOpen(true)}
-              className="flex items-center gap-2 px-3 py-2 rounded-full border border-zinc-700 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/50 transition-all text-sm font-bold animate-pulse text-amber-400"
-              title="패치노트"
-            >
-              <FileText className="w-4 h-4" />
-              <span className="hidden sm:inline">패치노트</span>
-            </button>
             {user && (
               <button
                 onClick={() => setCurrentTab(currentTab === 'create' ? 'mypage' : 'create')}
@@ -855,7 +840,7 @@ export default function App() {
                 <Info className="w-5 h-5 text-amber-400 shrink-0 mt-0.5" />
                 <div className="text-zinc-300 leading-relaxed font-semibold">
                   <p className="font-bold text-amber-400 mb-2">안내사항</p>
-                  <p>나의 90일 수익화 캘린더에 모든 일차별 수익화 미션은 참고 링크, 참고 이미지, 비고란 중 하나라도 작성이 되어야 실행 체크가 가능합니다.</p>
+                  <p>마이페이지의 나의 90일 수익화 캘린더에 참고 링크, 참고 이미지, 비고란중 하나라도 입력 및 체크가 되어야 체크가 가능합니다.</p>
                   <p>비고란은 참고 링크, 참고 이미지가 없는 경우 작성해주세요.</p>
                 </div>
              </div>
@@ -1308,6 +1293,26 @@ export default function App() {
             <Calendar className="w-8 h-8 text-amber-400" />
             <span className="text-2xl font-black tracking-tighter">혁신 수익화 캘린더 <span className="text-amber-400">AI</span></span>
           </div>
+
+          {/* FAQ & Patch Notes Buttons */}
+          <div className="flex flex-wrap items-center justify-center gap-3 mb-8">
+            <button
+              onClick={() => setIsFaqModalOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-800 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/40 transition-all text-sm font-bold text-zinc-300"
+            >
+              <HelpCircle className="w-4 h-4 text-zinc-400" />
+              <span>자주 묻는 질문 (FAQ)</span>
+            </button>
+            <button
+              onClick={() => setIsPatchNotesOpen(true)}
+              className="flex items-center gap-2 px-4 py-2.5 rounded-full border border-zinc-800 hover:border-amber-400 hover:text-amber-400 bg-zinc-900/40 transition-all text-sm font-bold text-zinc-300 animate-pulse text-amber-400"
+              title="패치노트"
+            >
+              <FileText className="w-4 h-4 text-amber-400" />
+              <span>최신 패치노트</span>
+            </button>
+          </div>
+
           <div className="text-zinc-500 text-sm font-medium flex flex-col items-center gap-2">
             <p className="flex items-center gap-2">
               <span className="text-zinc-700">Project Developer:</span> 
