@@ -131,6 +131,7 @@ export default function App() {
   const [isMaintenanceOpen, setIsMaintenanceOpen] = useState(false);
   const [files, setFiles] = useState<File[]>([]);
   const [inputText, setInputText] = useState('');
+  const [calendarTitle, setCalendarTitle] = useState('');
   const [currentTab, setCurrentTab] = useState<'create' | 'mypage'>('create');
   const [error, setError] = useState('');
   const [loading, setLoading] = useState(false);
@@ -172,6 +173,21 @@ export default function App() {
       setTempApiKey(savedKey);
     }
   }, []);
+
+  // 가입한 아이디 이름을 기반으로 한 기본 캘린더 제목 ("OOO의 수익화 캘린더")
+  const getDefaultCalendarTitle = () => {
+    const name = user?.displayName?.trim() || user?.email?.split('@')[0] || '나';
+    return `${name}의 수익화 캘린더`;
+  };
+
+  // 로그인 시 캘린더 제목을 기본값으로 설정합니다 (사용자가 아직 직접 입력하지 않은 경우).
+  useEffect(() => {
+    if (user) {
+      setCalendarTitle(prev => (prev.trim() ? prev : getDefaultCalendarTitle()));
+    } else {
+      setCalendarTitle('');
+    }
+  }, [user]);
 
   useEffect(() => {
     async function loadUserPlansInfo() {
@@ -288,9 +304,9 @@ export default function App() {
     }
   };
 
-  const saveUserPlan = async (newOutput: string, newCompletedDays: Record<number, boolean>, newDayMetadata: Record<number, DayMetadata> = {}, newTitle: string = '나의 90일 수익화 캘린더') => {
+  const saveUserPlan = async (newOutput: string, newCompletedDays: Record<number, boolean>, newDayMetadata: Record<number, DayMetadata> = {}, newTitle: string = '나의 90일 수익화 캘린더', forceNew: boolean = false) => {
     if (!user) return;
-    
+
     // Always save to local storage as backup
     try {
       localStorage.setItem(`calendar_${user.uid}`, JSON.stringify({
@@ -301,7 +317,9 @@ export default function App() {
     } catch(e) {}
 
     try {
-      if (currentCalendarId && currentCalendarId !== 'local') {
+      // forceNew는 새 캘린더 생성 시 사용합니다. 기존 캘린더를 덮어쓰지 않고 항상 새 문서를 추가하여
+      // 재생성 시 기존 캘린더가 삭제되는 현상을 방지합니다.
+      if (!forceNew && currentCalendarId && currentCalendarId !== 'local') {
         const docRef = doc(db, 'calendars', currentCalendarId);
         await updateDoc(docRef, {
           output: newOutput,
@@ -460,12 +478,10 @@ export default function App() {
       }
       setProgress(100);
       if (user) {
-        let title = "나의 90일 수익화 캘린더";
-        if (inputText.trim()) {
-           const snippet = inputText.trim();
-           title = snippet.length > 15 ? snippet.slice(0, 15) + '...' : snippet;
-        }
-        await saveUserPlan(currentText, {}, {}, title);
+        // 사용자가 생성 전 지정한 제목을 사용하고, 비어있으면 기본 제목을 사용합니다.
+        const title = calendarTitle.trim() || getDefaultCalendarTitle();
+        // forceNew: true 로 기존 캘린더를 덮어쓰지 않고 항상 새 캘린더로 저장합니다.
+        await saveUserPlan(currentText, {}, {}, title, true);
       }
     } catch (err: any) {
       console.error(err);
@@ -484,6 +500,70 @@ export default function App() {
       days.push({ day: parseInt(match[1], 10), content: match[2].trim() });
     }
     return days;
+  };
+
+  // 결과물(수익화 캘린더)을 PDF로 다운로드합니다. 실행 체크/버튼 없이 내용만 포함합니다.
+  const handleDownloadPdf = () => {
+    if (!output) return;
+    const title = calendarsInfo.find(c => c.id === currentCalendarId)?.title || '90일 수익화 캘린더';
+    const days = parseCalendarDays(output);
+    if (days.length === 0) {
+      alert('다운로드할 캘린더 내용이 없습니다.');
+      return;
+    }
+
+    const esc = (s: string) =>
+      s.replace(/&/g, '&amp;').replace(/</g, '&lt;').replace(/>/g, '&gt;');
+
+    const daysHtml = days.map(d => {
+      const meta = dayMetadata[d.day];
+      let extra = '';
+      if (meta?.links && meta.links.length > 0) {
+        extra += `<div class="meta"><div class="meta-title">참고 링크</div><ul>${meta.links.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
+      }
+      if (meta?.images && meta.images.length > 0) {
+        extra += `<div class="meta"><div class="meta-title">참고 이미지</div><ul>${meta.images.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
+      }
+      if (meta?.remarks?.trim()) {
+        extra += `<div class="meta"><div class="meta-title">비고</div><p>${esc(meta.remarks)}</p></div>`;
+      }
+      return `<section class="day"><h2>${d.day}일차</h2><div class="content">${esc(d.content)}</div>${extra}</section>`;
+    }).join('');
+
+    const printWindow = window.open('', '_blank');
+    if (!printWindow) {
+      alert('팝업이 차단되어 PDF를 생성할 수 없습니다. 브라우저의 팝업 차단을 해제해주세요.');
+      return;
+    }
+
+    printWindow.document.write(`<!DOCTYPE html>
+<html lang="ko">
+<head>
+<meta charset="utf-8" />
+<title>${esc(title)}</title>
+<style>
+  * { box-sizing: border-box; }
+  body { font-family: 'Apple SD Gothic Neo', 'Malgun Gothic', sans-serif; color: #111; margin: 32px; line-height: 1.7; }
+  h1 { font-size: 26px; font-weight: 800; border-bottom: 3px solid #f59e0b; padding-bottom: 12px; margin-bottom: 28px; }
+  .day { page-break-inside: avoid; margin-bottom: 22px; padding-bottom: 18px; border-bottom: 1px solid #e5e5e5; }
+  .day h2 { font-size: 16px; font-weight: 800; color: #b45309; margin: 0 0 8px; }
+  .content { white-space: pre-wrap; font-size: 13px; }
+  .meta { margin-top: 10px; padding-left: 12px; border-left: 3px solid #fbbf24; }
+  .meta-title { font-weight: 700; font-size: 12px; color: #555; margin-bottom: 4px; }
+  .meta ul { margin: 0; padding-left: 18px; }
+  .meta li, .meta p { font-size: 12px; color: #333; word-break: break-all; margin: 2px 0; }
+  @media print { body { margin: 0; } }
+</style>
+</head>
+<body>
+  <h1>${esc(title)}</h1>
+  ${daysHtml}
+  <script>
+    window.onload = function () { window.focus(); window.print(); };
+  </script>
+</body>
+</html>`);
+    printWindow.document.close();
   };
 
   const handleAddMetadata = async (type: 'link' | 'image', day: number) => {
@@ -765,6 +845,27 @@ export default function App() {
               </div>
             </div>
 
+            {/* 3. Calendar Title Section */}
+            <div className="bg-zinc-900/50 rounded-3xl border border-zinc-800 p-8 relative overflow-hidden backdrop-blur-sm group hover:border-amber-400/30 transition-all">
+              <div className="absolute top-0 left-0 w-2 h-full bg-amber-400"></div>
+              <h3 className="text-xl font-black text-white mb-4 flex items-center gap-3">
+                <Calendar className="w-6 h-6 text-amber-400" />
+                3. 캘린더 제목
+              </h3>
+              <div className="bg-zinc-800/50 p-4 rounded-2xl mb-6 border border-zinc-700">
+                <p className="text-sm text-zinc-300 leading-relaxed">
+                  생성될 캘린더의 제목을 미리 지정할 수 있습니다. 비워두면 <span className="font-bold text-amber-400">"{getDefaultCalendarTitle()}"</span> 으로 자동 설정됩니다.
+                </p>
+              </div>
+              <input
+                type="text"
+                value={calendarTitle}
+                onChange={e => setCalendarTitle(e.target.value)}
+                placeholder={getDefaultCalendarTitle()}
+                className="w-full bg-zinc-800 border-2 border-zinc-700 rounded-2xl px-6 py-4 text-base focus:border-amber-400 outline-none text-white placeholder:text-zinc-600 transition-all font-medium"
+              />
+            </div>
+
             {error && (
               <div className="p-4 bg-red-950 border border-red-800 text-red-200 rounded-2xl text-sm font-bold flex items-center gap-3">
                 <div className="w-6 h-6 bg-red-600 rounded-full flex items-center justify-center flex-shrink-0 text-white">!</div>
@@ -1032,8 +1133,17 @@ export default function App() {
                    );
                 })()}
               </div>
+
+              <button
+                onClick={handleDownloadPdf}
+                className="flex items-center gap-2 px-5 py-3 bg-amber-400 hover:bg-amber-300 text-black font-black rounded-2xl transition-all shadow-lg active:scale-95 shrink-0 self-start"
+                title="결과물을 PDF로 다운로드"
+              >
+                <Download className="w-5 h-5" />
+                PDF 다운로드
+              </button>
             </div>
-            
+
             {parseCalendarDays(output).length > 0 && (
                 <div className="grid grid-cols-1 sm:grid-cols-2 lg:grid-cols-3 xl:grid-cols-4 2xl:grid-cols-5 gap-4">
                   {parseCalendarDays(output).map((d, i) => {
