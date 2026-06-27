@@ -155,6 +155,7 @@ export default function App() {
   const [remarksText, setRemarksText] = useState('');
   const [uploadingImage, setUploadingImage] = useState(false);
   const imageFileInputRef = useRef<HTMLInputElement>(null);
+  const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
   useEffect(() => {
     if (!selectedDay) {
@@ -167,6 +168,16 @@ export default function App() {
       setRemarksText(dayMetadata[selectedDay.day]?.remarks || '');
     }
   }, [selectedDay, dayMetadata]);
+
+  // 확대 이미지 보기 중 ESC 키로 닫기
+  useEffect(() => {
+    if (!zoomedImage) return;
+    const onKeyDown = (e: KeyboardEvent) => {
+      if (e.key === 'Escape') setZoomedImage(null);
+    };
+    window.addEventListener('keydown', onKeyDown);
+    return () => window.removeEventListener('keydown', onKeyDown);
+  }, [zoomedImage]);
 
   useEffect(() => {
     const savedKey = localStorage.getItem('gemini_api_key');
@@ -1450,7 +1461,7 @@ export default function App() {
                     <div className="grid grid-cols-2 sm:grid-cols-3 gap-3">
                       {(dayMetadata[selectedDay.day]?.images || []).map((img, idx) => (
                         <div key={idx} className="relative group rounded-xl overflow-hidden border border-zinc-800 aspect-video bg-zinc-900">
-                           <img src={img} alt={`Day ${selectedDay.day} attachment`} className="w-full h-full object-cover" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Invalid+Image'; }} />
+                           <img src={img} alt={`Day ${selectedDay.day} attachment`} title="더블클릭하면 크게 볼 수 있습니다" onDoubleClick={() => setZoomedImage(img)} className="w-full h-full object-cover cursor-zoom-in" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Invalid+Image'; }} />
                            <button onClick={() => removeMetadata('image', selectedDay.day, idx)} className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm">
                              <Trash2 className="w-4 h-4" />
                            </button>
@@ -1506,6 +1517,29 @@ export default function App() {
 
             </div>
           </div>
+        </div>
+      )}
+
+      {/* Image Lightbox (참고 이미지 더블클릭 시 확대) */}
+      {zoomedImage && (
+        <div
+          className="fixed inset-0 bg-black/90 backdrop-blur-sm flex items-center justify-center z-[130] p-4 animate-in fade-in duration-150"
+          onClick={() => setZoomedImage(null)}
+        >
+          <button
+            onClick={() => setZoomedImage(null)}
+            className="absolute top-4 right-4 p-2 bg-white/10 hover:bg-white/20 text-white rounded-full transition-colors"
+            title="닫기"
+          >
+            <X className="w-6 h-6" />
+          </button>
+          <img
+            src={zoomedImage}
+            alt="확대 이미지"
+            className="max-w-[95vw] max-h-[90vh] object-contain rounded-lg shadow-2xl cursor-zoom-out"
+            onClick={(e) => e.stopPropagation()}
+            onDoubleClick={() => setZoomedImage(null)}
+          />
         </div>
       )}
 
