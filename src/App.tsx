@@ -706,6 +706,39 @@ export default function App() {
     }
   };
 
+  // 참고 이미지를 다운로드합니다. base64 data URL은 그대로, 원격 URL은 fetch 후 blob으로 저장합니다.
+  const handleDownloadImage = async (img: string, day: number, index: number) => {
+    try {
+      let href = img;
+      let ext = 'jpg';
+      if (img.startsWith('data:')) {
+        const mime = img.substring(5, img.indexOf(';'));
+        ext = mime.split('/')[1] || 'jpg';
+      } else {
+        try {
+          const res = await fetch(img);
+          const blob = await res.blob();
+          ext = (blob.type.split('/')[1]) || img.split('.').pop()?.split(/[?#]/)[0] || 'jpg';
+          href = URL.createObjectURL(blob);
+        } catch {
+          // CORS 등으로 fetch 실패 시 새 탭에서 열어 사용자가 직접 저장하도록 합니다.
+          window.open(img, '_blank');
+          return;
+        }
+      }
+      const a = document.createElement('a');
+      a.href = href;
+      a.download = `참고이미지_${day}일차_${index + 1}.${ext}`;
+      document.body.appendChild(a);
+      a.click();
+      document.body.removeChild(a);
+      if (href.startsWith('blob:')) URL.revokeObjectURL(href);
+    } catch (err) {
+      console.warn('이미지 다운로드 실패', err);
+      window.open(img, '_blank');
+    }
+  };
+
   const removeMetadata = async (type: 'link' | 'image', day: number, index: number) => {
     const currentMeta = dayMetadata[day];
     if (!currentMeta) return;
@@ -1462,9 +1495,14 @@ export default function App() {
                       {(dayMetadata[selectedDay.day]?.images || []).map((img, idx) => (
                         <div key={idx} className="relative group rounded-xl overflow-hidden border border-zinc-800 aspect-video bg-zinc-900">
                            <img src={img} alt={`Day ${selectedDay.day} attachment`} title="더블클릭하면 크게 볼 수 있습니다" onDoubleClick={() => setZoomedImage(img)} className="w-full h-full object-cover cursor-zoom-in" onError={(e) => { (e.target as HTMLImageElement).src = 'https://via.placeholder.com/300x200?text=Invalid+Image'; }} />
-                           <button onClick={() => removeMetadata('image', selectedDay.day, idx)} className="absolute top-2 right-2 p-1.5 bg-black/70 hover:bg-red-500 text-white rounded-lg opacity-0 group-hover:opacity-100 transition-all backdrop-blur-sm">
-                             <Trash2 className="w-4 h-4" />
-                           </button>
+                           <div className="absolute top-2 right-2 flex gap-1.5 opacity-0 group-hover:opacity-100 transition-all">
+                             <button onClick={() => handleDownloadImage(img, selectedDay.day, idx)} title="다운로드" className="p-1.5 bg-black/70 hover:bg-amber-400 hover:text-black text-white rounded-lg backdrop-blur-sm transition-colors">
+                               <Download className="w-4 h-4" />
+                             </button>
+                             <button onClick={() => removeMetadata('image', selectedDay.day, idx)} title="삭제" className="p-1.5 bg-black/70 hover:bg-red-500 text-white rounded-lg backdrop-blur-sm transition-colors">
+                               <Trash2 className="w-4 h-4" />
+                             </button>
+                           </div>
                         </div>
                       ))}
                     </div>
