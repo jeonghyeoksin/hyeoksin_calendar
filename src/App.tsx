@@ -1,4 +1,4 @@
-import React, { useState, useEffect } from 'react';
+import React, { useState, useEffect, useRef } from 'react';
 import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
 import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info, Copy, ExternalLink, Eye, EyeOff, Table, User, LogIn, LogOut, Lock, Link as LinkIcon, Image as ImageIcon, Plus, Edit2, Check } from 'lucide-react';
@@ -153,6 +153,8 @@ export default function App() {
   const [activeInput, setActiveInput] = useState<'link' | 'image' | null>(null);
   const [editingRemarks, setEditingRemarks] = useState(false);
   const [remarksText, setRemarksText] = useState('');
+  const [uploadingImage, setUploadingImage] = useState(false);
+  const imageFileInputRef = useRef<HTMLInputElement>(null);
 
   useEffect(() => {
     if (!selectedDay) {
@@ -522,7 +524,7 @@ export default function App() {
         extra += `<div class="meta"><div class="meta-title">참고 링크</div><ul>${meta.links.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
       }
       if (meta?.images && meta.images.length > 0) {
-        extra += `<div class="meta"><div class="meta-title">참고 이미지</div><ul>${meta.images.map(l => `<li>${esc(l)}</li>`).join('')}</ul></div>`;
+        extra += `<div class="meta"><div class="meta-title">참고 이미지</div><div class="img-grid">${meta.images.map(l => `<img src="${esc(l)}" alt="참고 이미지" />`).join('')}</div></div>`;
       }
       if (meta?.remarks?.trim()) {
         extra += `<div class="meta"><div class="meta-title">비고</div><p>${esc(meta.remarks)}</p></div>`;
@@ -552,7 +554,9 @@ export default function App() {
   .meta-title { font-weight: 700; font-size: 12px; color: #555; margin-bottom: 4px; }
   .meta ul { margin: 0; padding-left: 18px; }
   .meta li, .meta p { font-size: 12px; color: #333; word-break: break-all; margin: 2px 0; }
-  @media print { body { margin: 0; } }
+  .img-grid { display: flex; flex-wrap: wrap; gap: 8px; }
+  .img-grid img { max-width: 180px; max-height: 180px; object-fit: contain; border: 1px solid #e5e5e5; border-radius: 6px; }
+  @media print { body { margin: 0; } .img-grid img { page-break-inside: avoid; } }
 </style>
 </head>
 <body>
@@ -589,6 +593,88 @@ export default function App() {
 
     if (user) {
       await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+    }
+  };
+
+  // 업로드한 이미지 파일을 캔버스로 리사이즈/압축하여 base64 data URL로 변환합니다.
+  // Firestore 문서 용량 제한(1MB)을 고려해 긴 변을 최대 1280px로 줄이고 JPEG로 압축합니다.
+  const fileToCompressedDataUrl = (file: File): Promise<string> => {
+    return new Promise((resolve, reject) => {
+      const reader = new FileReader();
+      reader.onload = () => {
+        const img = new window.Image();
+        img.onload = () => {
+          const maxSize = 1280;
+          let { width, height } = img;
+          if (width > maxSize || height > maxSize) {
+            if (width >= height) {
+              height = Math.round((height * maxSize) / width);
+              width = maxSize;
+            } else {
+              width = Math.round((width * maxSize) / height);
+              height = maxSize;
+            }
+          }
+          const canvas = document.createElement('canvas');
+          canvas.width = width;
+          canvas.height = height;
+          const ctx = canvas.getContext('2d');
+          if (!ctx) { reject(new Error('canvas context 생성 실패')); return; }
+          ctx.drawImage(img, 0, 0, width, height);
+          // PNG 투명도가 필요 없는 일반 참고 이미지이므로 JPEG로 압축합니다.
+          resolve(canvas.toDataURL('image/jpeg', 0.8));
+        };
+        img.onerror = () => reject(new Error('이미지를 불러올 수 없습니다.'));
+        img.src = reader.result as string;
+      };
+      reader.onerror = () => reject(new Error('파일을 읽을 수 없습니다.'));
+      reader.readAsDataURL(file);
+    });
+  };
+
+  const handleImageFileUpload = async (e: React.ChangeEvent<HTMLInputElement>, day: number) => {
+    const files: File[] = e.target.files ? Array.from(e.target.files) : [];
+    // 같은 파일을 다시 선택해도 onChange가 발생하도록 input 값을 초기화합니다.
+    if (imageFileInputRef.current) imageFileInputRef.current.value = '';
+    if (files.length === 0) return;
+
+    const imageFiles = files.filter(f => f.type.startsWith('image/'));
+    if (imageFiles.length === 0) {
+      alert('png, jpg 등의 이미지 파일만 첨부할 수 있습니다.');
+      return;
+    }
+
+    setUploadingImage(true);
+    try {
+      const dataUrls: string[] = [];
+      for (const file of imageFiles) {
+        try {
+          dataUrls.push(await fileToCompressedDataUrl(file));
+        } catch (err) {
+          console.warn('이미지 변환 실패', file.name, err);
+        }
+      }
+      if (dataUrls.length === 0) {
+        alert('이미지를 처리하는 중 오류가 발생했습니다.');
+        return;
+      }
+
+      const currentMeta = dayMetadata[day] || { links: [], images: [] };
+      const newMeta = {
+        ...dayMetadata,
+        [day]: {
+          ...currentMeta,
+          images: [...currentMeta.images, ...dataUrls]
+        }
+      };
+      setDayMetadata(newMeta);
+      setActiveInput(null);
+
+      if (user) {
+        await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+      }
+    } finally {
+      setUploadingImage(false);
     }
   };
 
@@ -1320,17 +1406,44 @@ export default function App() {
                       </button>
                     </div>
                     {activeInput === 'image' && (
-                      <div className="flex gap-2 mb-4 animate-in slide-in-from-top-2">
+                      <div className="flex flex-col gap-2 mb-4 animate-in slide-in-from-top-2">
+                        <div className="flex gap-2">
+                          <input
+                             type="url"
+                             value={newImageUrl}
+                             onChange={(e) => setNewImageUrl(e.target.value)}
+                             placeholder="이미지 URL (https://...)"
+                             className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 text-sm outline-none focus:border-amber-400 text-white"
+                             onKeyDown={(e) => e.key === 'Enter' && handleAddMetadata('image', selectedDay.day)}
+                          />
+                          <button onClick={() => handleAddMetadata('image', selectedDay.day)} className="px-4 py-2 bg-amber-400 text-black font-bold rounded-xl text-sm">
+                            추가
+                          </button>
+                        </div>
                         <input
-                           type="url"
-                           value={newImageUrl}
-                           onChange={(e) => setNewImageUrl(e.target.value)}
-                           placeholder="이미지 URL (https://...)"
-                           className="flex-1 bg-zinc-950 border border-zinc-800 rounded-xl px-4 text-sm outline-none focus:border-amber-400 text-white"
-                           onKeyDown={(e) => e.key === 'Enter' && handleAddMetadata('image', selectedDay.day)}
+                          ref={imageFileInputRef}
+                          type="file"
+                          accept="image/png,image/jpeg,image/jpg,image/gif,image/webp"
+                          multiple
+                          className="hidden"
+                          onChange={(e) => handleImageFileUpload(e, selectedDay.day)}
                         />
-                        <button onClick={() => handleAddMetadata('image', selectedDay.day)} className="px-4 py-2 bg-amber-400 text-black font-bold rounded-xl text-sm">
-                          추가
+                        <button
+                          onClick={() => imageFileInputRef.current?.click()}
+                          disabled={uploadingImage}
+                          className="flex items-center justify-center gap-2 w-full px-4 py-2.5 border border-dashed border-zinc-700 hover:border-amber-400 rounded-xl text-sm text-zinc-400 hover:text-amber-400 transition-colors disabled:opacity-50 disabled:cursor-not-allowed"
+                        >
+                          {uploadingImage ? (
+                            <>
+                              <Loader2 className="w-4 h-4 animate-spin" />
+                              업로드 중...
+                            </>
+                          ) : (
+                            <>
+                              <Upload className="w-4 h-4" />
+                              PNG, JPG 파일 업로드
+                            </>
+                          )}
                         </button>
                       </div>
                     )}
