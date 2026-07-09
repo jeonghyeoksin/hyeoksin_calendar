@@ -1,0 +1,15 @@
+rules_version = '2';
+service firebase.storage {
+  match /b/{bucket}/o {
+    // 참고 이미지: 본인 폴더에만 업로드/삭제 가능, 읽기는 로그인 사용자 허용
+    // (이미지 표시는 getDownloadURL의 토큰 URL을 사용하므로 규칙과 무관하게 동작합니다)
+    match /reference_images/{userId}/{allPaths=**} {
+      allow read: if request.auth != null;
+      allow create, update: if request.auth != null
+        && request.auth.uid == userId
+        && request.resource.size < 5 * 1024 * 1024
+        && request.resource.contentType.matches('image/.*');
+      allow delete: if request.auth != null && request.auth.uid == userId;
+    }
+  }
+}

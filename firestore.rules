@@ -19,7 +19,11 @@ service cloud.firestore {
     match /calendars/{calendar} {
       allow read: if isSignedIn();
       allow create: if isSignedIn();
-      allow update, delete: if isOwner(resource.data.userId) || isAdmin();
+      // 구버전 캘린더(문서 id = uid)는 userId 필드가 없어 업데이트가 거부되던 문제를 보완:
+      // userId가 없는 문서는 문서 id가 본인 uid인 경우 수정/삭제를 허용합니다.
+      allow update, delete: if isOwner(resource.data.userId)
+        || (!('userId' in resource.data) && isOwner(calendar))
+        || isAdmin();
     }
 
     match /system/config {

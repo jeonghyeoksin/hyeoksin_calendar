@@ -3,7 +3,8 @@ import { GoogleGenAI } from '@google/genai';
 import mammoth from 'mammoth';
 import { Key, X, Upload, FileText, Download, Loader2, Calendar, Trash2, CheckCircle, HelpCircle, Info, Copy, ExternalLink, Eye, EyeOff, Table, User, LogIn, LogOut, Lock, Link as LinkIcon, Image as ImageIcon, Plus, Edit2, Check } from 'lucide-react';
 import { useAuth } from './AuthContext';
-import { db } from './firebase';
+import { db, storage } from './firebase';
+import { ref as firebaseStorageRef, uploadString, getDownloadURL, deleteObject } from 'firebase/storage';
 
 interface DayMetadata {
   links: string[];
@@ -11,7 +12,7 @@ interface DayMetadata {
   remarks?: string;
 }
 
-import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, orderBy, deleteDoc } from 'firebase/firestore';
+import { doc, getDoc, setDoc, updateDoc, serverTimestamp, collection, query, where, getDocs, addDoc, orderBy, deleteDoc, FieldPath } from 'firebase/firestore';
 import { AdminDashboard } from './AdminDashboard';
 import { AuthModal } from './AuthModal';
 import { FaqModal } from './FaqModal';
@@ -157,6 +158,8 @@ export default function App() {
   const imageFileInputRef = useRef<HTMLInputElement>(null);
   const [zoomedImage, setZoomedImage] = useState<string | null>(null);
 
+  // 선택한 일차가 바뀔 때만 입력 상태를 초기화합니다.
+  // dayMetadata를 의존성에 넣으면 링크/이미지 추가 시 작성 중이던 비고 내용이 날아가므로 제외합니다.
   useEffect(() => {
     if (!selectedDay) {
       setNewLinkUrl('');
@@ -167,7 +170,7 @@ export default function App() {
     } else {
       setRemarksText(dayMetadata[selectedDay.day]?.remarks || '');
     }
-  }, [selectedDay, dayMetadata]);
+  }, [selectedDay]);
 
   // 확대 이미지 보기 중 ESC 키로 닫기
   useEffect(() => {
@@ -232,9 +235,10 @@ export default function App() {
           setCalendarsInfo(cals);
 
           if (cals.length > 0) {
-            // Load the most recent one by default
-            const mostRecent = cals[0];
-            await loadCalendarData(mostRecent.id);
+            // 마지막으로 보고 있던 캘린더를 우선 복원하고, 없으면 가장 최근 생성본을 불러옵니다.
+            const lastViewedId = localStorage.getItem(`lastCalendar_${user.uid}`);
+            const target = cals.find(c => c.id === lastViewedId) || cals[0];
+            await loadCalendarData(target.id);
           } else {
              // check for legacy calendar
              const docRef = doc(db, 'calendars', user.uid);
@@ -305,10 +309,50 @@ export default function App() {
       const docSnap = await getDoc(docRef);
       if (docSnap.exists()) {
          const data = docSnap.data();
+         let completed: Record<number, boolean> = data.completedDays || {};
+         let meta: Record<number, DayMetadata> = data.dayMetadata || {};
+
+         // 로컬 백업이 서버 데이터보다 최신이면(과거 저장 실패로 유실된 변경사항) 복구를 제안합니다.
+         try {
+           const backupRaw = localStorage.getItem(`calendar_${user.uid}`);
+           if (backupRaw) {
+             const backup = JSON.parse(backupRaw);
+             const remoteUpdatedAt = data.updatedAt?.toDate ? data.updatedAt.toDate().getTime() : 0;
+             const differs =
+               JSON.stringify(backup.completedDays || {}) !== JSON.stringify(completed) ||
+               JSON.stringify(backup.dayMetadata || {}) !== JSON.stringify(meta);
+             if (backup.calendarId === calendarId && backup.savedAt && backup.savedAt > remoteUpdatedAt && differs) {
+               if (window.confirm('이 캘린더에 저장되지 않은 변경사항(로컬 백업)이 발견되었습니다.\n백업된 실행 체크와 참고자료를 복구할까요?')) {
+                 completed = backup.completedDays || {};
+                 meta = backup.dayMetadata || {};
+                 try {
+                   await updateDoc(docRef, {
+                     completedDays: completed,
+                     dayMetadata: meta,
+                     updatedAt: serverTimestamp()
+                   });
+                 } catch (saveErr: any) {
+                   console.warn('백업 복구 저장 실패', saveErr);
+                   alert(describeSaveError(saveErr));
+                 }
+               } else {
+                 // 거절 시 다시 묻지 않도록 최신 표시만 제거합니다 (오프라인 폴백용 내용은 유지).
+                 try { localStorage.setItem(`calendar_${user.uid}`, JSON.stringify({ ...backup, savedAt: 0 })); } catch(e) {}
+               }
+             }
+           }
+         } catch(e) {}
+
          setOutput(data.output || '');
-         setCompletedDays(data.completedDays || {});
-         setDayMetadata(data.dayMetadata || {});
+         setCompletedDays(completed);
+         setDayMetadata(meta);
          setCurrentCalendarId(calendarId);
+         try { localStorage.setItem(`lastCalendar_${user.uid}`, calendarId); } catch(e) {}
+         // 구버전 캘린더(문서 id = uid)에는 userId 필드가 없어 보안 규칙상 업데이트가 거부됩니다.
+         // 발견 시 userId를 채워 이후 저장이 정상 동작하도록 복구합니다.
+         if (!data.userId && calendarId === user.uid) {
+           try { await updateDoc(docRef, { userId: user.uid }); } catch(e) {}
+         }
       }
     } catch(err) {
       console.warn("Failed to load calendar data", err);
@@ -317,15 +361,33 @@ export default function App() {
     }
   };
 
-  const saveUserPlan = async (newOutput: string, newCompletedDays: Record<number, boolean>, newDayMetadata: Record<number, DayMetadata> = {}, newTitle: string = '나의 90일 수익화 캘린더', forceNew: boolean = false) => {
-    if (!user) return;
+  // Firestore 저장 실패 원인을 사용자가 이해할 수 있는 문구로 변환합니다.
+  const describeSaveError = (err: any): string => {
+    const msg = String(err?.message || err);
+    if (err?.code === 'permission-denied') {
+      return '저장 권한이 없어 변경사항이 저장되지 않았습니다.\n로그아웃 후 다시 로그인하거나 관리자에게 문의해주세요.';
+    }
+    if (msg.includes('maximum allowed size') || msg.includes('exceeds the maximum') || err?.code === 'invalid-argument') {
+      return '캘린더 데이터 용량이 저장 한도(1MB)를 초과하여 저장되지 않았습니다.\n참고 이미지를 일부 삭제한 후 다시 시도해주세요.';
+    }
+    if (err?.code === 'unavailable' || msg.includes('offline') || msg.includes('network')) {
+      return '네트워크 연결이 불안정하여 저장하지 못했습니다.\n인터넷 연결을 확인한 후 다시 시도해주세요.';
+    }
+    return `저장 중 오류가 발생하여 변경사항이 저장되지 않았습니다.\n(${msg})`;
+  };
+
+  const saveUserPlan = async (newOutput: string, newCompletedDays: Record<number, boolean>, newDayMetadata: Record<number, DayMetadata> = {}, newTitle: string = '나의 90일 수익화 캘린더', forceNew: boolean = false): Promise<boolean> => {
+    if (!user) return true;
 
     // Always save to local storage as backup
+    // savedAt/calendarId는 재접속 시 "서버보다 최신인 미저장 변경" 복구 판단에 사용됩니다.
     try {
       localStorage.setItem(`calendar_${user.uid}`, JSON.stringify({
         output: newOutput,
         completedDays: newCompletedDays,
-        dayMetadata: newDayMetadata
+        dayMetadata: newDayMetadata,
+        calendarId: forceNew ? null : currentCalendarId,
+        savedAt: Date.now()
       }));
     } catch(e) {}
 
@@ -353,8 +415,56 @@ export default function App() {
         setCurrentCalendarId(docRef.id);
         setCalendarsInfo(prev => [{id: docRef.id, title: newTitle, createdAt: new Date()}, ...prev].sort((a,b) => b.createdAt.getTime() - a.createdAt.getTime()));
       }
+      return true;
     } catch (err: any) {
       console.warn("Failed to save user plan to Firestore", err);
+      alert(describeSaveError(err));
+      return false;
+    }
+  };
+
+  // 일차 단위 변경사항(완료 체크, 참고자료)만 Firestore에 부분 업데이트합니다.
+  // 문서 전체를 덮어쓰지 않으므로 다른 일차의 이미지 용량 때문에 저장이 막히거나
+  // 연속 저장 시 서로 덮어쓰는 문제를 방지합니다. 실패 시 false를 반환하고 사용자에게 알립니다.
+  const saveDayData = async (day: number, changes: { completed?: boolean; meta?: DayMetadata }): Promise<boolean> => {
+    if (!user) return true;
+
+    const newCompletedDays = changes.completed !== undefined ? { ...completedDays, [day]: changes.completed } : completedDays;
+    const newDayMetadata = changes.meta !== undefined ? { ...dayMetadata, [day]: changes.meta } : dayMetadata;
+
+    // 로컬 백업 (Firestore 장애 시 복구용)
+    // savedAt/calendarId는 재접속 시 "서버보다 최신인 미저장 변경" 복구 판단에 사용됩니다.
+    try {
+      localStorage.setItem(`calendar_${user.uid}`, JSON.stringify({
+        output,
+        completedDays: newCompletedDays,
+        dayMetadata: newDayMetadata,
+        calendarId: currentCalendarId,
+        savedAt: Date.now()
+      }));
+    } catch(e) {}
+
+    if (!currentCalendarId || currentCalendarId === 'local') {
+      // 아직 Firestore 문서가 없는 경우 전체 저장(새 문서 생성)으로 폴백합니다.
+      return await saveUserPlan(output, newCompletedDays, newDayMetadata, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+    }
+
+    try {
+      const docRef = doc(db, 'calendars', currentCalendarId);
+      const fields: any[] = [];
+      if (changes.completed !== undefined) {
+        fields.push(new FieldPath('completedDays', String(day)), changes.completed);
+      }
+      if (changes.meta !== undefined) {
+        fields.push(new FieldPath('dayMetadata', String(day)), changes.meta);
+      }
+      fields.push(new FieldPath('updatedAt'), serverTimestamp());
+      await updateDoc(docRef, fields[0], fields[1], ...fields.slice(2));
+      return true;
+    } catch (err: any) {
+      console.warn("Failed to save day data to Firestore", err);
+      alert(describeSaveError(err));
+      return false;
     }
   };
 
@@ -589,22 +699,20 @@ export default function App() {
     }
 
     const currentMeta = dayMetadata[day] || { links: [], images: [] };
-    const newMeta = {
-      ...dayMetadata,
-      [day]: {
-        ...currentMeta,
-        links: type === 'link' ? [...currentMeta.links, val] : currentMeta.links,
-        images: type === 'image' ? [...currentMeta.images, val] : currentMeta.images
-      }
+    const newDayMeta: DayMetadata = {
+      ...currentMeta,
+      links: type === 'link' ? [...currentMeta.links, val] : currentMeta.links,
+      images: type === 'image' ? [...currentMeta.images, val] : currentMeta.images
     };
-    setDayMetadata(newMeta);
+
+    // 저장이 성공한 경우에만 화면에 반영합니다. 실패 시 입력값을 유지해 재시도할 수 있게 합니다.
+    const ok = await saveDayData(day, { meta: newDayMeta });
+    if (!ok) return;
+
+    setDayMetadata(prev => ({ ...prev, [day]: newDayMeta }));
     if (type === 'link') setNewLinkUrl('');
     else setNewImageUrl('');
     setActiveInput(null);
-
-    if (user) {
-      await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
-    }
   };
 
   // 업로드한 이미지 파일을 캔버스로 리사이즈/압축하여 base64 data URL로 변환합니다.
@@ -657,33 +765,63 @@ export default function App() {
 
     setUploadingImage(true);
     try {
-      const dataUrls: string[] = [];
+      // 이미지를 Firebase Storage에 업로드하고 URL만 캘린더 문서에 저장합니다.
+      // (base64를 문서에 직접 넣으면 Firestore 1MB 한도에 걸려 이후 저장이 전부 실패할 수 있습니다.)
+      const imageUrls: string[] = [];
+      let usedBase64Fallback = false;
       for (const file of imageFiles) {
         try {
-          dataUrls.push(await fileToCompressedDataUrl(file));
+          const dataUrl = await fileToCompressedDataUrl(file);
+          if (user) {
+            try {
+              const path = `reference_images/${user.uid}/${Date.now()}_${Math.random().toString(36).slice(2, 8)}.jpg`;
+              const imgRef = firebaseStorageRef(storage, path);
+              await uploadString(imgRef, dataUrl, 'data_url');
+              imageUrls.push(await getDownloadURL(imgRef));
+            } catch (uploadErr) {
+              // Storage 업로드 실패(미설정/권한 등) 시 기존 base64 방식으로 폴백합니다.
+              console.warn('Storage 업로드 실패, base64로 폴백', file.name, uploadErr);
+              imageUrls.push(dataUrl);
+              usedBase64Fallback = true;
+            }
+          } else {
+            imageUrls.push(dataUrl);
+            usedBase64Fallback = true;
+          }
         } catch (err) {
           console.warn('이미지 변환 실패', file.name, err);
         }
       }
-      if (dataUrls.length === 0) {
+      if (imageUrls.length === 0) {
         alert('이미지를 처리하는 중 오류가 발생했습니다.');
         return;
       }
 
       const currentMeta = dayMetadata[day] || { links: [], images: [] };
-      const newMeta = {
-        ...dayMetadata,
-        [day]: {
-          ...currentMeta,
-          images: [...currentMeta.images, ...dataUrls]
-        }
+      const newDayMeta: DayMetadata = {
+        ...currentMeta,
+        images: [...currentMeta.images, ...imageUrls]
       };
-      setDayMetadata(newMeta);
-      setActiveInput(null);
 
-      if (user) {
-        await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+      // base64 폴백이 사용된 경우에만 Firestore 문서 한도(1MB) 사전 검사가 필요합니다.
+      if (usedBase64Fallback) {
+        const estimatedSize = new Blob([JSON.stringify({
+          output,
+          completedDays,
+          dayMetadata: { ...dayMetadata, [day]: newDayMeta }
+        })]).size;
+        if (estimatedSize > 900_000) {
+          alert('참고 이미지 용량이 캘린더 저장 한도(1MB)를 초과하여 추가할 수 없습니다.\n기존 이미지를 일부 삭제하거나 더 작은 이미지를 사용해주세요.');
+          return;
+        }
       }
+
+      // 저장이 성공한 경우에만 화면에 반영합니다.
+      const ok = await saveDayData(day, { meta: newDayMeta });
+      if (!ok) return;
+
+      setDayMetadata(prev => ({ ...prev, [day]: newDayMeta }));
+      setActiveInput(null);
     } finally {
       setUploadingImage(false);
     }
@@ -691,19 +829,17 @@ export default function App() {
 
   const handleSaveRemarks = async (day: number) => {
     const currentMeta = dayMetadata[day] || { links: [], images: [] };
-    const newMeta = {
-      ...dayMetadata,
-      [day]: {
-        ...currentMeta,
-        remarks: remarksText
-      }
+    const newDayMeta: DayMetadata = {
+      ...currentMeta,
+      remarks: remarksText
     };
-    setDayMetadata(newMeta);
-    setEditingRemarks(false);
 
-    if (user) {
-      await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
-    }
+    // 저장이 성공한 경우에만 반영합니다. 실패 시 편집 상태를 유지해 작성 내용을 보존합니다.
+    const ok = await saveDayData(day, { meta: newDayMeta });
+    if (!ok) return;
+
+    setDayMetadata(prev => ({ ...prev, [day]: newDayMeta }));
+    setEditingRemarks(false);
   };
 
   // 참고 이미지를 다운로드합니다. base64 data URL은 그대로, 원격 URL은 fetch 후 blob으로 저장합니다.
@@ -743,22 +879,27 @@ export default function App() {
     const currentMeta = dayMetadata[day];
     if (!currentMeta) return;
 
-    const newMeta = {
-      ...dayMetadata,
-      [day]: {
-        ...currentMeta,
-        links: type === 'link' ? currentMeta.links.filter((_, i) => i !== index) : currentMeta.links,
-        images: type === 'image' ? currentMeta.images.filter((_, i) => i !== index) : currentMeta.images
-      }
+    const removedImage = type === 'image' ? currentMeta.images[index] : null;
+    const newDayMeta: DayMetadata = {
+      ...currentMeta,
+      links: type === 'link' ? currentMeta.links.filter((_, i) => i !== index) : currentMeta.links,
+      images: type === 'image' ? currentMeta.images.filter((_, i) => i !== index) : currentMeta.images
     };
-    setDayMetadata(newMeta);
-    if (user) {
-      await saveUserPlan(output, completedDays, newMeta, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
+
+    const ok = await saveDayData(day, { meta: newDayMeta });
+    if (!ok) return;
+
+    setDayMetadata(prev => ({ ...prev, [day]: newDayMeta }));
+
+    // Storage에 업로드된 이미지라면 원본 파일도 정리합니다 (실패해도 무시 - 문서에서는 이미 제거됨).
+    if (removedImage && removedImage.includes('firebasestorage')) {
+      try { await deleteObject(firebaseStorageRef(storage, removedImage)); } catch(e) {}
     }
   };
 
   const toggleDayCompletion = async (day: number) => {
-    if (!completedDays[day]) {
+    const newValue = !completedDays[day];
+    if (newValue) {
       const meta = dayMetadata[day];
       const hasLinks = meta?.links && meta.links.length > 0;
       const hasImages = meta?.images && meta.images.length > 0;
@@ -770,14 +911,13 @@ export default function App() {
       }
     }
 
-    const newCompletedDays = {
-      ...completedDays,
-      [day]: !completedDays[day]
-    };
-    setCompletedDays(newCompletedDays);
-    if (user) {
-      await saveUserPlan(output, newCompletedDays, dayMetadata, calendarsInfo.find(c => c.id === currentCalendarId)?.title);
-    }
+    // 저장이 성공한 경우에만 체크 상태를 화면에 반영합니다.
+    // (기존에는 저장 실패가 조용히 무시되어, 화면에는 체크된 것처럼 보이지만
+    //  재접속 시 미실행으로 되돌아가는 문제가 있었습니다.)
+    const ok = await saveDayData(day, { completed: newValue });
+    if (!ok) return;
+
+    setCompletedDays(prev => ({ ...prev, [day]: newValue }));
   };
 
   const hasKey = !!(apiKey || process.env.GEMINI_API_KEY);
